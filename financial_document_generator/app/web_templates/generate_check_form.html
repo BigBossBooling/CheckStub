@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Generate Check</h2>
+<form method="POST" action="{{ url_for('generate_check_route') }}">
+    <fieldset>
+        <legend>Bank Information</legend>
+        <div>
+            <label for="bank_name">Bank Name:</label>
+            <input type="text" id="bank_name" name="bank_name" value="Community Bank & Trust" required>
+        </div>
+        <div>
+            <label for="bank_address">Bank Address:</label>
+            <input type="text" id="bank_address" name="bank_address" value="456 Finance Ave, Moneytown, ST 67890">
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Check Details</legend>
+        <div>
+            <label for="check_number">Check Number:</label>
+            <input type="text" id="check_number" name="check_number" value="1001" required>
+        </div>
+        <div>
+            <label for="date">Date:</label>
+            <input type="text" id="date" name="date" value="December 5, 2023" required>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Payee Information</legend>
+        <div>
+            <label for="payee_name">Pay to the Order of:</label>
+            <input type="text" id="payee_name" name="payee_name" value="Jane K. Smith" required>
+        </div>
+        <div>
+            <label for="amount_numeric">Amount (Numeric, e.g., 123.45):</label>
+            <input type="text" id="amount_numeric" name="amount_numeric" value="123.45" required pattern="\d+(\.\d{2})?">
+        </div>
+        <div>
+            <label for="amount_words">Amount (In Words):</label>
+            <input type="text" id="amount_words" name="amount_words" value="ONE HUNDRED TWENTY-THREE AND 45/100" required>
+        </div>
+        <div>
+            <label for="memo">Memo:</label>
+            <input type="text" id="memo" name="memo" value="Invoice #INV789">
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Account Information</legend>
+        <div>
+            <label for="routing_number">Routing Number:</label>
+            <input type="text" id="routing_number" name="routing_number" value="123456789">
+        </div>
+        <div>
+            <label for="account_number">Account Number:</label>
+            <input type="text" id="account_number" name="account_number" value="9876543210">
+        </div>
+    </fieldset>
+
+    <br>
+    <button type="submit">Generate Check PDF</button>
+</form>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <h1>Welcome to the Financial Document Generator</h1>
+    <p>This tool helps you generate various financial documents and perform conversions.</p>
+
+    <h2>Available Actions:</h2>
+    <ul>
+        <li><a href="{{ url_for('generate_check_route') }}">Generate Check</a></li>
+        <li><a href="{{ url_for('generate_check_stub_route') }}">Generate Check Stub</a></li>
+        <li><a href="{{ url_for('convert_pdf_to_png_route') }}">Convert PDF to PNG</a></li>
+    </ul>
+    <p><em>(Actual links will be implemented in subsequent steps.)</em></p>
+{% endblock %}

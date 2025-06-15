@@ -1,8 +1,6 @@
 import os
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML, CSS
-# from weasyprint import FontConfiguration # Removed for now
-
 def generate_check(data, output_path=None):
     '''
     Generates a check PDF from data.
@@ -16,8 +14,8 @@ def generate_check(data, output_path=None):
                                      Otherwise, returns the PDF as bytes.
 
     Returns:
-        bytes or None: PDF content as bytes if output_path is None, else None if file is saved.
-                       Returns None on error as well.
+        bytes or bool: PDF content as bytes if output_path is None,
+                       True if file is saved successfully, else None on error.
     '''
     try:
         # Correctly determine the base directory of the project
@@ -41,14 +39,13 @@ def generate_check(data, output_path=None):
         # If style.css contains general styles, it's good to include it.
         css_path = os.path.join(static_dir, 'style.css')
 
-        # font_config = FontConfiguration() # Removed for now
         html_obj = HTML(string=html_string, base_url=template_dir) # base_url helps resolve ../static/style.css
 
         # Load additional CSS if needed (e.g. the main style.css)
         # WeasyPrint will pick up <link> tags if base_url is set correctly.
         # If you want to explicitly add stylesheets:
-        # stylesheets = [CSS(css_path)] # Removed font_config
-        # pdf_bytes = html_obj.write_pdf(stylesheets=stylesheets) # Removed font_config
+        # stylesheets = [CSS(css_path)]
+        # pdf_bytes = html_obj.write_pdf(stylesheets=stylesheets)
 
         if output_path:
             html_obj.write_pdf(output_path)

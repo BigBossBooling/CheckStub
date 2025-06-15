@@ -19,7 +19,7 @@ def convert_pdf_to_png(pdf_input, output_folder, output_filename_prefix='page'):
                                                Defaults to 'page'.
 
     Returns:
-        list: A list of paths to the generated PNG files. Returns empty list on error.
+        list: A list of paths to the generated PNG files. Raises exceptions on conversion errors.
 
     Raises:
         FileNotFoundError: If pdf_input is a path and the file is not found.

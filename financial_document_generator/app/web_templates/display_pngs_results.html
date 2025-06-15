@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Conversion Results - PNG Images</h2>
+{% if png_urls %}
+    <p>Successfully converted your PDF to the following PNG image(s):</p>
+    <div class="results-grid">
+    {% for png_url in png_urls %}
+        <div>
+            <p><a href="{{ png_url }}" target="_blank">View {{ png_url.split('/')[-1] }}</a></p>
+            <img src="{{ png_url }}" alt="Generated PNG Image {{ loop.index }}">
+        </div>
+    {% endfor %}
+    </div>
+    <hr>
+    <p><a href="{{ url_for('convert_pdf_to_png_route') }}">Convert another PDF</a></p>
+{% else %}
+    <p>No PNG files were generated, or an error occurred.</p>
+    <p><a href="{{ url_for('convert_pdf_to_png_route') }}">Try again</a></p>
+{% endif %}
+{% endblock %}

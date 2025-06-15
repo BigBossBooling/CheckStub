@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>PDF to PNG Converter</h2>
+<form method="POST" action="{{ url_for('convert_pdf_to_png_route') }}" enctype="multipart/form-data">
+    <div>
+        <label for="pdf_file">Select PDF file to convert:</label>
+        <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+    </div>
+    <br>
+    <button type="submit">Convert to PNG(s)</button>
+</form>
+{% endblock %}
