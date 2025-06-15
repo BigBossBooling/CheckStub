@@ -4,9 +4,159 @@
     <meta charset="UTF-8">
     <title>Check Stub</title>
     <link rel="stylesheet" href="../static/style.css">
+    <style>
+        .stub-container {
+            width: 800px; /* Similar to check width */
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+            font-size: 0.9em;
+        }
+        .stub-header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .stub-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        .stub-section {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #eee;
+        }
+        .stub-section:last-child {
+            border-bottom: none;
+        }
+        .stub-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stub-table th, .stub-table td {
+            padding: 4px;
+            text-align: left;
+        }
+        .stub-table th {
+            background-color: #f2f2f2;
+        }
+        .text-right {
+            text-align: right !important;
+        }
+        .summary-table td {
+            font-weight: bold;
+        }
+        .company-info, .employee-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom:10px;
+        }
+        .info-block div {
+            margin-bottom: 3px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Check Stub</h1>
-    <!-- Add document-specific content here -->
+    <div class="stub-container">
+        <div class="stub-header">
+            <h2>{{ company_name | default('Your Company LLC') }}</h2>
+            <div>{{ company_address | default('123 Business Rd, Suite 400, Your City, ST 54321') }}</div>
+            <div>Pay Stub</div>
+        </div>
+
+        <div class="stub-section employee-info">
+            <div class="info-block">
+                <div><strong>Employee:</strong> {{ employee_name | default('LASTNAME, FIRSTNAME') }}</div>
+                <div><strong>ID:</strong> {{ employee_id | default('EMP000') }}</div>
+            </div>
+            <div class="info-block text-right">
+                <div><strong>Pay Period:</strong> {{ pay_period_start | default('MM/DD/YYYY') }} - {{ pay_period_end | default('MM/DD/YYYY') }}</div>
+                <div><strong>Pay Date:</strong> {{ pay_date | default('MM/DD/YYYY') }}</div>
+                <div><strong>Check No:</strong> {{ check_number | default('0000') }}</div>
+            </div>
+        </div>
+
+        <div class="stub-section">
+            <table class="stub-table">
+                <thead>
+                    <tr>
+                        <th>Earnings</th>
+                        <th>Hours</th>
+                        <th>Rate</th>
+                        <th>Current</th>
+                        <th>YTD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for earning in earnings %}
+                    <tr>
+                        <td>{{ earning.description }}</td>
+                        <td class="text-right">{{ earning.hours | default('') }}</td>
+                        <td class="text-right">{{ earning.rate | default('') }}</td>
+                        <td class="text-right">{{ earning.current | default('0.00') }}</td>
+                        <td class="text-right">{{ earning.ytd | default('0.00') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">No earnings information available.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-right"><strong>Total Earnings:</strong></td>
+                        <td class="text-right"><strong>{{ total_earnings_current | default('0.00') }}</strong></td>
+                        <td class="text-right"><strong>{{ total_earnings_ytd | default('0.00') }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="stub-section">
+            <table class="stub-table">
+                <thead>
+                    <tr>
+                        <th>Deductions</th>
+                        <th>Current</th>
+                        <th>YTD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for deduction in deductions %}
+                    <tr>
+                        <td>{{ deduction.description }}</td>
+                        <td class="text-right">{{ deduction.current | default('0.00') }}</td>
+                        <td class="text-right">{{ deduction.ytd | default('0.00') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3">No deductions information available.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td class="text-right"><strong>Total Deductions:</strong></td>
+                        <td class="text-right"><strong>{{ total_deductions_current | default('0.00') }}</strong></td>
+                        <td class="text-right"><strong>{{ total_deductions_ytd | default('0.00') }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="stub-section">
+             <table class="stub-table summary-table">
+                 <tr>
+                    <td>Net Pay:</td>
+                    <td class="text-right">{{ net_pay_current | default('0.00') }}</td>
+                 </tr>
+                 <tr>
+                    <td>YTD Net Pay:</td>
+                    <td class="text-right">{{ ytd_net_pay | default('0.00') }}</td>
+                 </tr>
+             </table>
+        </div>
+
+        <div class="stub-section" style="text-align:center; font-size: 0.8em; border-bottom: none; padding-bottom:0;">
+            {{ employer_notes | default('Keep this stub for your records.') }}
+        </div>
+
+    </div>
 </body>
 </html>
