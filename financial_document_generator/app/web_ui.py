@@ -35,6 +35,21 @@ UPLOAD_FOLDER = os.path.join(APP_ROOT, 'uploads')
 PNG_OUTPUT_FOLDER_REL_STATIC = 'generated_pngs' # Relative to static folder
 PNG_OUTPUT_FOLDER_ABS = os.path.join(app.static_folder, PNG_OUTPUT_FOLDER_REL_STATIC)
 
+# TODO: Implement a robust cleanup strategy for subdirectories in PNG_OUTPUT_FOLDER_ABS.
+# Potential strategies for cleaning up old generated PNG folders:
+# 1. Periodic Cleanup Task: A separate script/cron job that runs periodically (e.g., daily)
+#    and deletes folders older than a certain threshold (e.g., 24 hours).
+#    This is the most robust approach for a production environment. Requires external scheduler.
+# 2. Cleanup on New Request (Simpler, but can add overhead):
+#    At the beginning of a new request to `convert_pdf_to_png_route` (or even a global request hook),
+#    scan PNG_OUTPUT_FOLDER_ABS for subdirectories older than a threshold (e.g., > 1-2 hours old)
+#    and delete them. Care must be taken to do this efficiently (e.g., not on every single request if high traffic)
+#    to avoid slowing down user requests.
+# 3. Manual Cleanup: For development or low-usage internal tools, manual deletion might be acceptable temporarily.
+# 4. Per-session cleanup: If user sessions were implemented, temporary files could be tied to sessions
+#    and cleaned up on session expiry, but this adds significant complexity not currently in scope.
+# Current implementation does not automatically clean these PNG output folders.
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Example: 16MB upload limit
 
@@ -173,39 +188,48 @@ def convert_pdf_to_png_route():
 
         if file and file.filename.lower().endswith('.pdf'):
             filename = secure_filename(file.filename)
-            # Save uploaded PDF to a temporary location
             uploaded_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            saved_uploaded_pdf_path = None # To keep track if file was actually saved
+
             try:
                 file.save(uploaded_pdf_path)
+                saved_uploaded_pdf_path = uploaded_pdf_path # Mark as saved
 
                 # Create a unique sub-directory for this conversion's PNGs
                 # This directory will be inside static/generated_pngs/
                 unique_conversion_id = str(uuid.uuid4())
                 specific_png_output_dir_abs = os.path.join(PNG_OUTPUT_FOLDER_ABS, unique_conversion_id)
                 os.makedirs(specific_png_output_dir_abs, exist_ok=True)
+                # TODO: This `specific_png_output_dir_abs` and its contents (the generated PNGs for this specific request)
+                #       are not automatically cleaned up by the current logic after the user has viewed/downloaded them.
+                #       Refer to cleanup strategies documented near the definition of PNG_OUTPUT_FOLDER_ABS.
+                #       A very simple approach for these specific request folders might be to delete them after a short
+                #       time if they are only meant for immediate viewing, but that requires more state management
+                #       or a separate cleanup mechanism.
 
                 # Call the converter
-                png_file_paths = convert_pdf_to_png(uploaded_pdf_path, specific_png_output_dir_abs)
+                png_file_paths = convert_pdf_to_png(saved_uploaded_pdf_path, specific_png_output_dir_abs)
 
-                # Create URLs for the generated PNGs
                 png_urls = []
-                for png_path in png_file_paths:
-                    # Get filename relative to the 'specific_png_output_dir_abs'
-                    png_filename = os.path.basename(png_path)
+                if png_file_paths: # Check if list is not None and not empty
+                    for png_path in png_file_paths:
+                        # Get filename relative to the 'specific_png_output_dir_abs'
+                        png_filename = os.path.basename(png_path)
                     # Construct URL relative to static folder
                     # e.g., static/generated_pngs/<unique_id>/page_1.png
                     url = url_for('static', filename=os.path.join(PNG_OUTPUT_FOLDER_REL_STATIC, unique_conversion_id, png_filename))
                     png_urls.append(url)
 
-                # Clean up the uploaded PDF file after conversion
-                # os.remove(uploaded_pdf_path) # TODO: Add robust cleanup later
 
                 if png_urls:
                     flash(f'PDF converted to {len(png_urls)} PNG image(s).', 'success')
                     return render_template('display_pngs_results.html', title='Conversion Results', png_urls=png_urls)
                 else:
-                    flash('Conversion succeeded but no PNG files were generated.', 'warning')
+                    # This case means convert_pdf_to_png ran but produced no images (e.g. blank PDF)
+                    flash('Conversion ran but no PNG files were generated from the PDF.', 'warning')
+                    # Still want to redirect to form, not results page
                     return redirect(url_for('convert_pdf_to_png_route'))
+
 
             except PDFInfoNotInstalledError:
                 app.logger.error("Poppler is not installed or not in PATH.")
@@ -214,16 +238,16 @@ def convert_pdf_to_png_route():
             except Exception as e:
                 app.logger.error(f"Error during PDF to PNG conversion: {e}", exc_info=True)
                 flash(f'An error occurred during conversion: {e}', 'error')
-                # Clean up uploaded PDF if it exists and an error occurred during conversion part
-                if os.path.exists(uploaded_pdf_path):
-                    pass # os.remove(uploaded_pdf_path) # TODO: Add robust cleanup
                 return redirect(url_for('convert_pdf_to_png_route'))
             finally:
-                # More robust cleanup should be implemented (e.g. scheduled task for old files)
-                # For now, uploaded PDF is not deleted to allow inspection on error.
-                # if os.path.exists(uploaded_pdf_path):
-                #    os.remove(uploaded_pdf_path)
-                pass
+                if saved_uploaded_pdf_path and os.path.exists(saved_uploaded_pdf_path):
+                    try:
+                        os.remove(saved_uploaded_pdf_path)
+                        app.logger.info(f"Successfully deleted uploaded PDF: {saved_uploaded_pdf_path}")
+                    except Exception as e_remove:
+                        app.logger.error(f"Failed to delete uploaded PDF {saved_uploaded_pdf_path}: {e_remove}")
+                # Note: Cleanup of generated PNGs in specific_png_output_dir_abs is NOT handled here.
+                # That's a separate, more complex task (step 2.1 in the plan - document strategy).
 
         else:
             flash('Invalid file type. Please upload a PDF.', 'error')
