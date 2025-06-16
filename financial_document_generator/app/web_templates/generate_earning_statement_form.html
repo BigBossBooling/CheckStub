@@ -1,0 +1,135 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Generate Earning Statement</h2>
+<form method="POST" action="{{ url_for('generate_earning_statement_route') }}">
+    <fieldset>
+        <legend>Company & Employee Information</legend>
+        <div><label for="company_name">Company Name:</label><input type="text" id="company_name" name="company_name" value="Tech Solutions Inc." required></div>
+        <div><label for="company_address">Company Address:</label><input type="text" id="company_address" name="company_address" value="789 Innovation Drive, Silicon Valley, CA 94000"></div>
+        <div><label for="employee_name">Employee Name:</label><input type="text" id="employee_name" name="employee_name" value="DOE, JOHN A." required></div>
+        <div><label for="employee_id">Employee ID:</label><input type="text" id="employee_id" name="employee_id" value="EMP78901"></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Pay Period & Check Details</legend>
+        <div><label for="pay_period_start">Pay Period Start (MM/DD/YYYY):</label><input type="text" id="pay_period_start" name="pay_period_start" value="11/01/2023" required></div>
+        <div><label for="pay_period_end">Pay Period End (MM/DD/YYYY):</label><input type="text" id="pay_period_end" name="pay_period_end" value="11/15/2023" required></div>
+        <div><label for="pay_date">Pay Date (MM/DD/YYYY):</label><input type="text" id="pay_date" name="pay_date" value="11/20/2023" required></div>
+        <div><label for="check_number">Check Number:</label><input type="text" id="check_number" name="check_number" value="1001" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Earnings</legend>
+        <div id="earnings_section">
+            <!-- Earnings rows will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addEarningRow()">Add Earning</button>
+    </fieldset>
+
+    <fieldset>
+        <legend>Deductions</legend>
+        <div id="deductions_section">
+            <!-- Deductions rows will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addDeductionRow()">Add Deduction</button>
+    </fieldset>
+
+    <fieldset>
+        <legend>Totals (YTD totals are manual)</legend>
+        <div><label for="total_earnings_current">Total Current Earnings:</label><input type="text" id="total_earnings_current" name="total_earnings_current" value="0.00" required readonly></div>
+        <div><label for="total_earnings_ytd">Total YTD Earnings:</label><input type="text" name="total_earnings_ytd" value="0.00" required></div>
+        <div><label for="total_deductions_current">Total Current Deductions:</label><input type="text" id="total_deductions_current" name="total_deductions_current" value="0.00" required readonly></div>
+        <div><label for="total_deductions_ytd">Total YTD Deductions:</label><input type="text" name="total_deductions_ytd" value="0.00" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Net Pay & Notes</legend>
+        <div><label for="net_pay_current">Current Net Pay:</label><input type="text" id="net_pay_current" name="net_pay_current" value="0.00" required readonly></div>
+        <div><label for="ytd_net_pay">YTD Net Pay:</label><input type="text" name="ytd_net_pay" value="0.00" required></div>
+        <div>
+            <label for="employer_notes">Employer Notes:</label>
+            <textarea id="employer_notes" name="employer_notes" rows="3"></textarea>
+        </div>
+    </fieldset>
+
+    <br>
+    <button type="submit">Generate Earning Statement PDF</button>
+</form>
+
+<script>
+    let earningIdx = 0;
+    let deductionIdx = 0;
+
+    function updateTotals() {
+        let totalEarnings = 0;
+        document.querySelectorAll('input[name^="earning"][name$="_current"]').forEach(input => {
+            totalEarnings += parseFloat(input.value) || 0;
+        });
+        document.getElementById('total_earnings_current').value = totalEarnings.toFixed(2);
+
+        let totalDeductions = 0;
+        document.querySelectorAll('input[name^="deduction"][name$="_current"]').forEach(input => {
+            totalDeductions += parseFloat(input.value) || 0;
+        });
+        document.getElementById('total_deductions_current').value = totalDeductions.toFixed(2);
+
+        const netPay = totalEarnings - totalDeductions;
+        document.getElementById('net_pay_current').value = netPay.toFixed(2);
+    }
+
+    function addEarningRow() {
+        earningIdx++;
+        const section = document.getElementById('earnings_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row earning-row-' + earningIdx;
+        row.innerHTML = `
+            <h4>Earning ${earningIdx} <button type="button" onclick="removeRow('earning-row-${earningIdx}', true)">Remove</button></h4>
+            <div><label for="earning${earningIdx}_desc">Description:</label><input type="text" name="earning${earningIdx}_desc"></div>
+            <div><label for="earning${earningIdx}_hours">Hours:</label><input type="text" name="earning${earningIdx}_hours"></div>
+            <div><label for="earning${earningIdx}_rate">Rate:</label><input type="text" name="earning${earningIdx}_rate"></div>
+            <div><label for="earning${earningIdx}_current">Current:</label><input type="text" class="current-earning" name="earning${earningIdx}_current" value="0.00"></div>
+            <div><label for="earning${earningIdx}_ytd">YTD:</label><input type="text" name="earning${earningIdx}_ytd"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+        // Add event listener to the new 'current' field
+        row.querySelector('.current-earning').addEventListener('input', updateTotals);
+        updateTotals(); // Update totals when a new row is added
+    }
+
+    function addDeductionRow() {
+        deductionIdx++;
+        const section = document.getElementById('deductions_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row deduction-row-' + deductionIdx;
+        row.innerHTML = `
+            <h4>Deduction ${deductionIdx} <button type="button" onclick="removeRow('deduction-row-${deductionIdx}', false)">Remove</button></h4>
+            <div><label for="deduction${deductionIdx}_desc">Description:</label><input type="text" name="deduction${deductionIdx}_desc"></div>
+            <div><label for="deduction${deductionIdx}_current">Current:</label><input type="text" class="current-deduction" name="deduction${deductionIdx}_current" value="0.00"></div>
+            <div><label for="deduction${deductionIdx}_ytd">YTD:</label><input type="text" name="deduction${deductionIdx}_ytd"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+        // Add event listener to the new 'current' field
+        row.querySelector('.current-deduction').addEventListener('input', updateTotals);
+        updateTotals(); // Update totals when a new row is added
+    }
+
+    function removeRow(rowClassName, isEarningRow) { // Added isEarningRow to know which type to re-query
+        const rowToRemove = document.querySelector('.' + rowClassName);
+        if (rowToRemove) {
+            rowToRemove.remove();
+            updateTotals(); // Update totals when a row is removed
+        }
+    }
+
+    // Add one earning and one deduction row by default and attach listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        addEarningRow();
+        addDeductionRow();
+        // Initial totals calculation based on default rows (which have 0.00)
+        updateTotals();
+    });
+</script>
+{% endblock %}

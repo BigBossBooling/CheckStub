@@ -9,6 +9,7 @@ from .converters import convert_pdf_to_png, PDFInfoNotInstalledError
 from .bank_statement_generator import generate_bank_statement
 from .w2_form_generator import generate_w2_form
 from .income_statement_generator import generate_income_statement
+from .earning_statement_generator import generate_earning_statement
 
 # It's good practice to make template and static folder paths relative to the app
 # or use instance_path for more complex setups.
@@ -471,6 +472,68 @@ def generate_income_statement_route():
             return redirect(url_for('generate_income_statement_route'))
 
     return render_template('generate_income_statement_form.html', title='Generate Income Statement')
+
+@app.route('/generate/earning_statement', methods=['GET', 'POST'])
+def generate_earning_statement_route():
+    if request.method == 'POST':
+        try:
+            form_data = request.form.to_dict()
+            # Data Transformation for Dynamic Earnings & Deductions (same as check_stub_route)
+            parsed_data = form_data.copy()
+
+            parsed_data['earnings'] = []
+            earning_idx = 1
+            while True:
+                desc_key = f'earning{earning_idx}_desc'
+                if desc_key in form_data and form_data[desc_key]:
+                    parsed_data['earnings'].append({
+                        'description': form_data[desc_key],
+                        'hours': form_data.get(f'earning{earning_idx}_hours', ''),
+                        'rate': form_data.get(f'earning{earning_idx}_rate', ''),
+                        'current': form_data.get(f'earning{earning_idx}_current', ''),
+                        'ytd': form_data.get(f'earning{earning_idx}_ytd', '')
+                    })
+                    earning_idx += 1
+                else:
+                    break
+
+            parsed_data['deductions'] = []
+            deduction_idx = 1
+            while True:
+                desc_key = f'deduction{deduction_idx}_desc'
+                if desc_key in form_data and form_data[desc_key]:
+                    parsed_data['deductions'].append({
+                        'description': form_data[desc_key],
+                        'current': form_data.get(f'deduction{deduction_idx}_current', ''),
+                        'ytd': form_data.get(f'deduction{deduction_idx}_ytd', '')
+                    })
+                    deduction_idx += 1
+                else:
+                    break
+
+            if not parsed_data.get('company_name') or not parsed_data.get('employee_name'):
+                flash('Missing required Earning Statement fields.', 'error')
+                return redirect(url_for('generate_earning_statement_route'))
+
+            pdf_bytes = generate_earning_statement(parsed_data)
+
+            if pdf_bytes:
+                return send_file(
+                    io.BytesIO(pdf_bytes),
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=f"Earning_Statement_{parsed_data.get('employee_id', 'generated')}.pdf"
+                )
+            else:
+                flash('Failed to generate Earning Statement PDF. Check server logs.', 'error')
+                return redirect(url_for('generate_earning_statement_route'))
+
+        except Exception as e:
+            app.logger.error(f"Error generating Earning Statement: {e}", exc_info=True)
+            flash(f'An unexpected error occurred: {e}', 'error')
+            return redirect(url_for('generate_earning_statement_route'))
+
+    return render_template('generate_earning_statement_form.html', title='Generate Earning Statement')
 
 if __name__ == '__main__':
     # Make sure to run this from the project root (financial_document_generator)
