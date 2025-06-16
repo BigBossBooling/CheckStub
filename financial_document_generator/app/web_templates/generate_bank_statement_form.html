@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Generate Bank Statement</h2>
+<form method="POST" action="{{ url_for('generate_bank_statement_route') }}">
+    <fieldset>
+        <legend>Bank & Account Holder Information</legend>
+        <div><label for="bank_name">Bank Name:</label><input type="text" id="bank_name" name="bank_name" value="Global Finance Corp" required></div>
+        <div><label for="bank_address">Bank Address:</label><input type="text" id="bank_address" name="bank_address" value="1 Financial Plaza, Metro City, ST 10001"></div>
+        <div><label for="bank_logo_url">Bank Logo URL (Optional):</label><input type="text" id="bank_logo_url" name="bank_logo_url" value=""></div>
+        <div><label for="website">Bank Website (Optional):</label><input type="text" id="website" name="website" value="www.globalfinancecorp.example"></div>
+        <div><label for="customer_service_number">Customer Service (Optional):</label><input type="text" id="customer_service_number" name="customer_service_number" value="1-800-555-BANK"></div>
+        <hr>
+        <div><label for="account_holder_name">Account Holder Name:</label><input type="text" id="account_holder_name" name="account_holder_name" value="John D. Doe" required></div>
+        <div><label for="account_holder_address">Account Holder Address:</label><input type="text" id="account_holder_address" name="account_holder_address" value="123 Main Street, Anytown, ST 12345"></div>
+        <div><label for="account_number">Account Number:</label><input type="text" id="account_number" name="account_number" value="XXXX-XXXX-XX1234" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Statement Period & Balances</legend>
+        <div><label for="statement_date">Statement Date:</label><input type="text" id="statement_date" name="statement_date" value="November 5, 2023" required></div>
+        <div><label for="statement_period_start">Period Start Date:</label><input type="text" id="statement_period_start" name="statement_period_start" value="October 1, 2023" required></div>
+        <div><label for="statement_period_end">Period End Date:</label><input type="text" id="statement_period_end" name="statement_period_end" value="October 31, 2023" required></div>
+        <div><label for="opening_balance">Opening Balance:</label><input type="text" id="opening_balance" name="opening_balance" value="$1,234.56" required></div>
+        <div><label for="total_deposits">Total Deposits (Summary):</label><input type="text" id="total_deposits" name="total_deposits" value="$1,500.00"></div>
+        <div><label for="total_withdrawals">Total Withdrawals (Summary):</label><input type="text" id="total_withdrawals" name="total_withdrawals" value="$388.89"></div>
+        <div><label for="closing_balance">Closing Balance:</label><input type="text" id="closing_balance" name="closing_balance" value="$2,345.67" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Transactions (Simplified - Max 3 for this form)</legend>
+        <p><em>Enter transaction details. Leave unused rows blank. Ensure running balance is calculated correctly if entered manually.</em></p>
+        {% for i in range(1, 4) %} <!-- Create 3 transaction input groups -->
+        <h4>Transaction {{ i }}</h4>
+        <div><label for="trx{{i}}_date">Date:</label><input type="text" name="trx{{i}}_date"></div>
+        <div><label for="trx{{i}}_desc">Description:</label><input type="text" name="trx{{i}}_desc"></div>
+        <div><label for="trx{{i}}_withdrawal">Withdrawal (-):</label><input type="text" name="trx{{i}}_withdrawal"></div>
+        <div><label for="trx{{i}}_deposit">Deposit (+):</label><input type="text" name="trx{{i}}_deposit"></div>
+        <div><label for="trx{{i}}_balance">Running Balance:</label><input type="text" name="trx{{i}}_balance"></div>
+        {% if not loop.last %}<hr style="margin:10px 0;">{% endif %}
+        {% endfor %}
+    </fieldset>
+
+    <fieldset>
+        <legend>Optional Summary Messages (One per line)</legend>
+        <div>
+            <textarea name="summary_messages" rows="3" placeholder="e.g., Interest earned this period: $0.12"></textarea>
+        </div>
+    </fieldset>
+
+    <br>
+    <button type="submit">Generate Bank Statement PDF</button>
+</form>
+{% endblock %}

@@ -5,98 +5,108 @@
 <form method="POST" action="{{ url_for('generate_check_stub_route') }}">
     <fieldset>
         <legend>Company & Employee Information</legend>
-        <div>
-            <label for="company_name">Company Name:</label>
-            <input type="text" id="company_name" name="company_name" value="Tech Solutions Inc." required>
-        </div>
-        <div>
-            <label for="company_address">Company Address:</label>
-            <input type="text" id="company_address" name="company_address" value="789 Innovation Drive, Silicon Valley, CA 94000">
-        </div>
-        <div>
-            <label for="employee_name">Employee Name:</label>
-            <input type="text" id="employee_name" name="employee_name" value="DOE, JOHN A." required>
-        </div>
-        <div>
-            <label for="employee_id">Employee ID:</label>
-            <input type="text" id="employee_id" name="employee_id" value="EMP78901">
-        </div>
+        <div><label for="company_name">Company Name:</label><input type="text" id="company_name" name="company_name" value="Tech Solutions Inc." required></div>
+        <div><label for="company_address">Company Address:</label><input type="text" id="company_address" name="company_address" value="789 Innovation Drive, Silicon Valley, CA 94000"></div>
+        <div><label for="employee_name">Employee Name:</label><input type="text" id="employee_name" name="employee_name" value="DOE, JOHN A." required></div>
+        <div><label for="employee_id">Employee ID:</label><input type="text" id="employee_id" name="employee_id" value="EMP78901"></div>
     </fieldset>
 
     <fieldset>
         <legend>Pay Period & Check Details</legend>
-        <div>
-            <label for="pay_period_start">Pay Period Start (MM/DD/YYYY):</label>
-            <input type="text" id="pay_period_start" name="pay_period_start" value="11/01/2023" required>
-        </div>
-        <div>
-            <label for="pay_period_end">Pay Period End (MM/DD/YYYY):</label>
-            <input type="text" id="pay_period_end" name="pay_period_end" value="11/15/2023" required>
-        </div>
-        <div>
-            <label for="pay_date">Pay Date (MM/DD/YYYY):</label>
-            <input type="text" id="pay_date" name="pay_date" value="11/20/2023" required>
-        </div>
-        <div>
-            <label for="check_number">Check Number:</label>
-            <input type="text" id="check_number" name="check_number" value="1001" required>
-        </div>
+        <div><label for="pay_period_start">Pay Period Start (MM/DD/YYYY):</label><input type="text" id="pay_period_start" name="pay_period_start" value="11/01/2023" required></div>
+        <div><label for="pay_period_end">Pay Period End (MM/DD/YYYY):</label><input type="text" id="pay_period_end" name="pay_period_end" value="11/15/2023" required></div>
+        <div><label for="pay_date">Pay Date (MM/DD/YYYY):</label><input type="text" id="pay_date" name="pay_date" value="11/20/2023" required></div>
+        <div><label for="check_number">Check Number:</label><input type="text" id="check_number" name="check_number" value="1001" required></div>
     </fieldset>
 
     <fieldset>
-        <legend>Earnings (Add rows as needed via JavaScript later if dynamic)</legend>
-        <!-- For simplicity, we'll use a fixed number of rows or expect comma-separated values for now.
-             A proper implementation would use JavaScript to add/remove earning/deduction lines.
-             Let's assume a simplified text area for now, or fixed fields.
-             For a slightly better fixed approach, let's do 2 example earnings.
-        -->
-        <p><strong>Earning 1:</strong></p>
-        <div><label for="earning1_desc">Description:</label><input type="text" name="earning1_desc" value="Regular Pay"></div>
-        <div><label for="earning1_hours">Hours:</label><input type="text" name="earning1_hours" value="80"></div>
-        <div><label for="earning1_rate">Rate:</label><input type="text" name="earning1_rate" value="50.00"></div>
-        <div><label for="earning1_current">Current:</label><input type="text" name="earning1_current" value="4000.00"></div>
-        <div><label for="earning1_ytd">YTD:</label><input type="text" name="earning1_ytd" value="88000.00"></div>
-
-        <p><strong>Earning 2 (Optional):</strong></p>
-        <div><label for="earning2_desc">Description:</label><input type="text" name="earning2_desc" value="Overtime Pay"></div>
-        <div><label for="earning2_hours">Hours:</label><input type="text" name="earning2_hours" value="10"></div>
-        <div><label for="earning2_rate">Rate:</label><input type="text" name="earning2_rate" value="75.00"></div>
-        <div><label for="earning2_current">Current:</label><input type="text" name="earning2_current" value="750.00"></div>
-        <div><label for="earning2_ytd">YTD:</label><input type="text" name="earning2_ytd" value="3000.00"></div>
-        <!-- Add more fixed earning inputs if desired, or plan for dynamic rows later -->
+        <legend>Earnings</legend>
+        <div id="earnings_section">
+            <!-- Earnings rows will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addEarningRow()">Add Earning</button>
     </fieldset>
 
     <fieldset>
-        <legend>Totals & Deductions (Similar to Earnings, simplified for now)</legend>
-        <div><label for="total_earnings_current">Total Current Earnings:</label><input type="text" name="total_earnings_current" value="5250.00" required></div>
-        <div><label for="total_earnings_ytd">Total YTD Earnings:</label><input type="text" name="total_earnings_ytd" value="93000.00" required></div>
+        <legend>Deductions</legend>
+        <div id="deductions_section">
+            <!-- Deductions rows will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addDeductionRow()">Add Deduction</button>
+    </fieldset>
 
-        <p><strong>Deduction 1:</strong></p>
-        <div><label for="deduction1_desc">Description:</label><input type="text" name="deduction1_desc" value="Federal Income Tax"></div>
-        <div><label for="deduction1_current">Current:</label><input type="text" name="deduction1_current" value="600.00"></div>
-        <div><label for="deduction1_ytd">YTD:</label><input type="text" name="deduction1_ytd" value="13200.00"></div>
-
-        <p><strong>Deduction 2 (Optional):</strong></p>
-        <div><label for="deduction2_desc">Description:</label><input type="text" name="deduction2_desc" value="State Income Tax"></div>
-        <div><label for="deduction2_current">Current:</label><input type="text" name="deduction2_current" value="250.00"></div>
-        <div><label for="deduction2_ytd">YTD:</label><input type="text" name="deduction2_ytd" value="5500.00"></div>
-
-        <div><label for="total_deductions_current">Total Current Deductions:</label><input type="text" name="total_deductions_current" value="1601.63" required></div>
-        <div><label for="total_deductions_ytd">Total YTD Deductions:</label><input type="text" name="total_deductions_ytd" value="35235.86" required></div>
+    <fieldset>
+        <legend>Totals (Manual for now - ensure these match dynamic entries)</legend>
+        <div><label for="total_earnings_current">Total Current Earnings:</label><input type="text" name="total_earnings_current" value="0.00" required></div>
+        <div><label for="total_earnings_ytd">Total YTD Earnings:</label><input type="text" name="total_earnings_ytd" value="0.00" required></div>
+        <div><label for="total_deductions_current">Total Current Deductions:</label><input type="text" name="total_deductions_current" value="0.00" required></div>
+        <div><label for="total_deductions_ytd">Total YTD Deductions:</label><input type="text" name="total_deductions_ytd" value="0.00" required></div>
     </fieldset>
 
     <fieldset>
         <legend>Net Pay & Notes</legend>
-        <div><label for="net_pay_current">Current Net Pay:</label><input type="text" name="net_pay_current" value="3648.37" required></div>
-        <div><label for="ytd_net_pay">YTD Net Pay:</label><input type="text" name="ytd_net_pay" value="57764.14" required></div>
+        <div><label for="net_pay_current">Current Net Pay:</label><input type="text" name="net_pay_current" value="0.00" required></div>
+        <div><label for="ytd_net_pay">YTD Net Pay:</label><input type="text" name="ytd_net_pay" value="0.00" required></div>
         <div>
             <label for="employer_notes">Employer Notes:</label>
-            <textarea id="employer_notes" name="employer_notes" rows="3">Happy Holidays! Year-end bonus included.</textarea>
+            <textarea id="employer_notes" name="employer_notes" rows="3"></textarea>
         </div>
     </fieldset>
 
     <br>
     <button type="submit">Generate Check Stub PDF</button>
 </form>
-<p><em>Note: For multiple earnings/deductions, this form is simplified. A full implementation would allow dynamic row addition.</em></p>
+
+<script>
+    let earningIdx = 0;
+    let deductionIdx = 0;
+
+    function addEarningRow() {
+        earningIdx++;
+        const section = document.getElementById('earnings_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row earning-row-' + earningIdx;
+        row.innerHTML = `
+            <h4>Earning ${earningIdx} <button type="button" onclick="removeRow('earning-row-${earningIdx}')">Remove</button></h4>
+            <div><label for="earning${earningIdx}_desc">Description:</label><input type="text" name="earning${earningIdx}_desc"></div>
+            <div><label for="earning${earningIdx}_hours">Hours:</label><input type="text" name="earning${earningIdx}_hours"></div>
+            <div><label for="earning${earningIdx}_rate">Rate:</label><input type="text" name="earning${earningIdx}_rate"></div>
+            <div><label for="earning${earningIdx}_current">Current:</label><input type="text" name="earning${earningIdx}_current"></div>
+            <div><label for="earning${earningIdx}_ytd">YTD:</label><input type="text" name="earning${earningIdx}_ytd"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+    }
+
+    function addDeductionRow() {
+        deductionIdx++;
+        const section = document.getElementById('deductions_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row deduction-row-' + deductionIdx;
+        row.innerHTML = `
+            <h4>Deduction ${deductionIdx} <button type="button" onclick="removeRow('deduction-row-${deductionIdx}')">Remove</button></h4>
+            <div><label for="deduction${deductionIdx}_desc">Description:</label><input type="text" name="deduction${deductionIdx}_desc"></div>
+            <div><label for="deduction${deductionIdx}_current">Current:</label><input type="text" name="deduction${deductionIdx}_current"></div>
+            <div><label for="deduction${deductionIdx}_ytd">YTD:</label><input type="text" name="deduction${deductionIdx}_ytd"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+    }
+
+    function removeRow(rowClassName) {
+        const rowToRemove = document.querySelector('.' + rowClassName);
+        if (rowToRemove) {
+            rowToRemove.remove();
+        }
+        // Note: Re-indexing or compacting indices is not handled here for simplicity.
+        // The backend will need to handle potentially sparse indices if rows are removed from the middle.
+        // Or, ensure backend loops up to max possible index and checks for field existence.
+    }
+
+    // Add one earning and one deduction row by default for user convenience
+    document.addEventListener('DOMContentLoaded', function() {
+        addEarningRow();
+        addDeductionRow();
+    });
+</script>
 {% endblock %}

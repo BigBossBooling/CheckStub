@@ -19,7 +19,8 @@ class TestCheckGenerator(unittest.TestCase):
             'amount_words': 'NINE HUNDRED EIGHTY-SEVEN AND 65/100',
             'memo': 'Test Memo - Payment for services',
             'routing_number': '000111222',
-            'account_number': '1122334455'
+            'account_number': '1122334455',
+            'payment_category': 'Office Supplies'
         }
         # Define a directory for test outputs within the tests folder
         self.test_output_dir = os.path.join(os.path.dirname(__file__), 'test_outputs')
@@ -86,6 +87,29 @@ class TestCheckGenerator(unittest.TestCase):
         pdf_bytes = generate_check(invalid_data)
         self.assertIsNotNone(pdf_bytes, "generate_check should handle some invalid data types by rendering them as strings.")
         self.assertTrue(pdf_bytes.startswith(b'%PDF-'), "Output with invalid data does not look like a PDF file.")
+
+    def test_generate_check_with_and_without_payment_category(self):
+        """Test check generation with and without the optional payment category."""
+        # Test with payment category (already in self.sample_check_data via setUp)
+        pdf_bytes_with_category = generate_check(self.sample_check_data)
+        self.assertIsNotNone(pdf_bytes_with_category)
+        self.assertTrue(pdf_bytes_with_category.startswith(b'%PDF-'))
+
+        # Test without payment category
+        data_without_category = self.sample_check_data.copy()
+        # Ensure 'payment_category' is present before attempting to delete, to avoid KeyError if setUp changes
+        if 'payment_category' in data_without_category:
+            del data_without_category['payment_category']
+        pdf_bytes_without_category = generate_check(data_without_category)
+        self.assertIsNotNone(pdf_bytes_without_category)
+        self.assertTrue(pdf_bytes_without_category.startswith(b'%PDF-'))
+
+        # Test with empty payment category
+        data_empty_category = self.sample_check_data.copy()
+        data_empty_category['payment_category'] = ''
+        pdf_bytes_empty_category = generate_check(data_empty_category)
+        self.assertIsNotNone(pdf_bytes_empty_category)
+        self.assertTrue(pdf_bytes_empty_category.startswith(b'%PDF-'))
 
 if __name__ == '__main__':
     unittest.main()

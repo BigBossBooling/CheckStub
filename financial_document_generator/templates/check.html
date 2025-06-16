@@ -85,6 +85,12 @@
             Memo: {{ memo | default('') }}
         </div>
 
+        {% if payment_category %}
+        <div class="payment-category-line" style="font-size: 0.8em; margin-top: 5px;">
+            Category: {{ payment_category }}
+        </div>
+        {% endif %}
+
         <div class="signature-line">
             Authorized Signature
         </div>
