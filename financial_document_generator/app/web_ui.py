@@ -8,6 +8,7 @@ from .check_stub_generator import generate_check_stub
 from .converters import convert_pdf_to_png, PDFInfoNotInstalledError
 from .bank_statement_generator import generate_bank_statement
 from .w2_form_generator import generate_w2_form
+from .income_statement_generator import generate_income_statement
 
 # It's good practice to make template and static folder paths relative to the app
 # or use instance_path for more complex setups.
@@ -413,6 +414,63 @@ def generate_w2_route():
             return redirect(url_for('generate_w2_route'))
 
     return render_template('generate_w2_form.html', title='Generate W-2 Form')
+
+@app.route('/generate/income_statement', methods=['GET', 'POST'])
+def generate_income_statement_route():
+    if request.method == 'POST':
+        try:
+            form_data = request.form.to_dict()
+            parsed_data = form_data.copy() # Copy flat fields first
+
+            # Helper function for parsing list items
+            def parse_list_items(prefix, count_limit=10): # Limit to avoid abuse if someone crafts many fields
+                items = []
+                idx = 1
+                while idx <= count_limit:
+                    desc_key = f'{prefix}_{idx}_desc'
+                    amount_key = f'{prefix}_{idx}_amount'
+
+                    desc = form_data.get(desc_key)
+                    amount = form_data.get(amount_key)
+
+                    if desc and amount is not None: # Amount can be "0.00"
+                        items.append({'description': desc, 'amount': amount})
+                        idx += 1
+                    else:
+                        # If primary field (desc) is missing for current index, stop.
+                        break
+                return items
+
+            parsed_data['revenue_items'] = parse_list_items('revenue')
+            parsed_data['cogs_items'] = parse_list_items('cogs')
+            parsed_data['operating_expense_items'] = parse_list_items('opex')
+            parsed_data['other_income_expense_items'] = parse_list_items('otherincex')
+
+            # Basic validation
+            if not parsed_data.get('company_name') or not parsed_data.get('period_covered') or \
+               not parsed_data.get('total_revenue') or not parsed_data.get('net_income'):
+                flash('Missing required fields for Income Statement (e.g., Company Name, Period, Total Revenue, Net Income).', 'error')
+                return redirect(url_for('generate_income_statement_route'))
+
+            pdf_bytes = generate_income_statement(parsed_data)
+
+            if pdf_bytes:
+                return send_file(
+                    io.BytesIO(pdf_bytes),
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=f"Income_Statement_{parsed_data.get('company_name', 'generated').replace(' ', '_')}.pdf"
+                )
+            else:
+                flash('Failed to generate Income Statement PDF. Rendering may have timed out or an error occurred.', 'error')
+                return redirect(url_for('generate_income_statement_route'))
+
+        except Exception as e:
+            app.logger.error(f"Error generating Income Statement: {e}", exc_info=True)
+            flash(f'An unexpected error occurred: {e}', 'error')
+            return redirect(url_for('generate_income_statement_route'))
+
+    return render_template('generate_income_statement_form.html', title='Generate Income Statement')
 
 if __name__ == '__main__':
     # Make sure to run this from the project root (financial_document_generator)

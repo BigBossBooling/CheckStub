@@ -1,0 +1,149 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Generate Income Statement</h2>
+<form method="POST" action="{{ url_for('generate_income_statement_route') }}">
+    <fieldset>
+        <legend>Statement Header</legend>
+        <div><label for="company_name">Company Name:</label><input type="text" id="company_name" name="company_name" value="Sample Corp Inc." required></div>
+        <div><label for="statement_title">Statement Title:</label><input type="text" id="statement_title" name="statement_title" value="Income Statement" required></div>
+        <div><label for="period_covered">Period Covered (e.g., For the Year Ended Dec 31, 2023):</label><input type="text" id="period_covered" name="period_covered" value="For the Year Ended December 31, 2023" required></div>
+        <div><label for="currency_symbol">Currency Symbol:</label><input type="text" id="currency_symbol" name="currency_symbol" value="$" style="width: 50px;" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Revenue</legend>
+        <div id="revenue_items_section">
+            <!-- Revenue items will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addRevenueItemRow()">Add Revenue Item</button>
+        <div><label for="total_revenue">Total Revenue (Manual):</label><input type="text" id="total_revenue" name="total_revenue" value="0.00" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Cost of Goods Sold (COGS)</legend>
+        <div id="cogs_items_section">
+            <!-- COGS items will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addCogsItemRow()">Add COGS Item</button>
+        <div><label for="total_cogs">Total COGS (Manual):</label><input type="text" id="total_cogs" name="total_cogs" value="0.00"></div>
+        <div><label for="gross_profit">Gross Profit (Manual):</label><input type="text" id="gross_profit" name="gross_profit" value="0.00" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Operating Expenses</legend>
+        <div id="operating_expense_items_section">
+            <!-- Operating expense items will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addOperatingExpenseItemRow()">Add Operating Expense</button>
+        <div><label for="total_operating_expenses">Total Operating Expenses (Manual):</label><input type="text" id="total_operating_expenses" name="total_operating_expenses" value="0.00" required></div>
+        <div><label for="operating_income">Operating Income (Manual):</label><input type="text" id="operating_income" name="operating_income" value="0.00" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Other Income & Expenses</legend>
+        <div id="other_income_expense_items_section">
+            <!-- Other income/expense items will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addOtherIncomeExpenseItemRow()">Add Other Income/Expense Item</button>
+        <div><label for="total_other_income_expenses">Total Other Income/Expenses (Net, Manual):</label><input type="text" id="total_other_income_expenses" name="total_other_income_expenses" value="0.00"></div>
+        <div><label for="income_before_tax">Income Before Tax (Manual):</label><input type="text" id="income_before_tax" name="income_before_tax" value="0.00" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Tax & Net Income</legend>
+        <div><label for="income_tax_expense">Income Tax Expense (Manual):</label><input type="text" id="income_tax_expense" name="income_tax_expense" value="0.00"></div>
+        <div><label for="net_income">Net Income (Manual):</label><input type="text" id="net_income" name="net_income" value="0.00" required></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Notes (Optional)</legend>
+        <div><label for="notes_to_financial_statements">Notes to Financial Statements:</label><textarea name="notes_to_financial_statements" rows="3"></textarea></div>
+    </fieldset>
+
+    <br>
+    <button type="submit">Generate Income Statement PDF</button>
+</form>
+
+<script>
+    // Generic removeRow function (can be shared if moved to a global JS file)
+    function removeRow(rowClassName) {
+        const rowToRemove = document.querySelector('.' + rowClassName);
+        if (rowToRemove) {
+            rowToRemove.remove();
+        }
+    }
+
+    // Revenue Items
+    let revenueIdx = 0;
+    function addRevenueItemRow() {
+        revenueIdx++;
+        const section = document.getElementById('revenue_items_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row revenue-item-row-' + revenueIdx;
+        row.innerHTML = `
+            <h4>Revenue Item ${revenueIdx} <button type="button" onclick="removeRow('revenue-item-row-${revenueIdx}')">Remove</button></h4>
+            <div><label for="revenue_${revenueIdx}_desc">Description:</label><input type="text" name="revenue_${revenueIdx}_desc"></div>
+            <div><label for="revenue_${revenueIdx}_amount">Amount:</label><input type="text" name="revenue_${revenueIdx}_amount" value="0.00"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+    }
+
+    // COGS Items
+    let cogsIdx = 0;
+    function addCogsItemRow() {
+        cogsIdx++;
+        const section = document.getElementById('cogs_items_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row cogs-item-row-' + cogsIdx;
+        row.innerHTML = `
+            <h4>COGS Item ${cogsIdx} <button type="button" onclick="removeRow('cogs-item-row-${cogsIdx}')">Remove</button></h4>
+            <div><label for="cogs_${cogsIdx}_desc">Description:</label><input type="text" name="cogs_${cogsIdx}_desc"></div>
+            <div><label for="cogs_${cogsIdx}_amount">Amount:</label><input type="text" name="cogs_${cogsIdx}_amount" value="0.00"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+    }
+
+    // Operating Expense Items
+    let opExIdx = 0;
+    function addOperatingExpenseItemRow() {
+        opExIdx++;
+        const section = document.getElementById('operating_expense_items_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row opex-item-row-' + opExIdx;
+        row.innerHTML = `
+            <h4>Operating Expense ${opExIdx} <button type="button" onclick="removeRow('opex-item-row-${opExIdx}')">Remove</button></h4>
+            <div><label for="opex_${opExIdx}_desc">Description:</label><input type="text" name="opex_${opExIdx}_desc"></div>
+            <div><label for="opex_${opExIdx}_amount">Amount:</label><input type="text" name="opex_${opExIdx}_amount" value="0.00"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+    }
+
+    // Other Income/Expense Items
+    let otherIncExIdx = 0;
+    function addOtherIncomeExpenseItemRow() {
+        otherIncExIdx++;
+        const section = document.getElementById('other_income_expense_items_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row otherincex-item-row-' + otherIncExIdx;
+        row.innerHTML = `
+            <h4>Other Income/Expense ${otherIncExIdx} <button type="button" onclick="removeRow('otherincex-item-row-${otherIncExIdx}')">Remove</button></h4>
+            <div><label for="otherincex_${otherIncExIdx}_desc">Description:</label><input type="text" name="otherincex_${otherIncExIdx}_desc"></div>
+            <div><label for="otherincex_${otherIncExIdx}_amount">Amount (use negative for expense if applicable):</label><input type="text" name="otherincex_${otherIncExIdx}_amount" value="0.00"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+    }
+
+    // Add one of each item row by default
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('revenue_items_section')) addRevenueItemRow();
+        if (document.getElementById('cogs_items_section')) addCogsItemRow();
+        if (document.getElementById('operating_expense_items_section')) addOperatingExpenseItemRow();
+        if (document.getElementById('other_income_expense_items_section')) addOtherIncomeExpenseItemRow();
+    });
+</script>
+{% endblock %}

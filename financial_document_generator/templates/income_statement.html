@@ -2,11 +2,189 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Income Statement</title>
-    <link rel="stylesheet" href="../static/style.css">
+    <title>{{ statement_title | default('Income Statement') }} - {{ company_name | default('Company') }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            color: #333;
+            margin: 0;
+        }
+        @page {
+            margin: 0.75in;
+        }
+        .statement-container {
+            width: 100%;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 { /* Company Name */
+            font-size: 16pt;
+            margin: 0;
+            color: #000;
+        }
+        .header h2 { /* Statement Title */
+            font-size: 14pt;
+            margin: 5px 0;
+            font-weight: bold;
+            color: #000;
+        }
+        .header p { /* Period Covered */
+            font-size: 10pt;
+            margin: 5px 0;
+        }
+
+        .statement-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .statement-table td {
+            padding: 4px 8px;
+        }
+        .statement-table .description {
+            text-align: left;
+        }
+        .statement-table .amount {
+            text-align: right;
+        }
+        .statement-table .sub-item .description {
+            padding-left: 25px; /* Indent sub-items */
+        }
+        .statement-table .total-row .description,
+        .statement-table .total-row .amount {
+            font-weight: bold;
+            border-top: 1px solid #000;
+        }
+        .statement-table .grand-total-row .description,
+        .statement-table .grand-total-row .amount {
+            font-weight: bold;
+            border-top: 1px solid #000;
+            border-bottom: 3px double #000; /* Double underline for final total */
+        }
+        .section-header { /* e.g., "Revenue", "Operating Expenses" */
+            font-weight: bold;
+            padding-top: 10px;
+        }
+        .currency::before {
+            content: "{{ currency_symbol | default('$') }}";
+            margin-right: 2px; /* Space between symbol and number */
+        }
+    </style>
 </head>
 <body>
-    <h1>Income Statement</h1>
-    <!-- Add document-specific content here -->
+    <div class="statement-container">
+        <div class="header">
+            <h1>{{ company_name | default('Your Company Name') }}</h1>
+            <h2>{{ statement_title | default('Income Statement') }}</h2>
+            <p>{{ period_covered | default('For the Period Ended MM/DD/YYYY') }}</p>
+        </div>
+
+        <table class="statement-table">
+            <!-- Revenue Section -->
+            {% if revenue_items %}
+            <tr><td class="section-header" colspan="2">Revenue:</td></tr>
+            {% for item in revenue_items %}
+            <tr class="sub-item">
+                <td class="description">{{ item.description }}</td>
+                <td class="amount"><span class="currency">{{ item.amount }}</span></td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td class="description">Total Revenue</td>
+                <td class="amount"><span class="currency">{{ total_revenue | default('0.00') }}</span></td>
+            </tr>
+            <tr><td colspan="2">&nbsp;</td></tr> <!-- Spacer -->
+            {% endif %}
+
+            <!-- Cost of Goods Sold (COGS) Section -->
+            {% if total_cogs or cogs_items %}
+            <tr><td class="section-header" colspan="2">Cost of Goods Sold:</td></tr>
+            {% if cogs_items %}
+                {% for item in cogs_items %}
+                <tr class="sub-item">
+                    <td class="description">{{ item.description }}</td>
+                    <td class="amount"><span class="currency">{{ item.amount }}</span></td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+            <tr class="total-row">
+                <td class="description">Total Cost of Goods Sold</td>
+                <td class="amount"><span class="currency">{{ total_cogs | default('0.00') }}</span></td>
+            </tr>
+            <tr class="total-row"> <!-- Gross Profit -->
+                <td class="description">Gross Profit</td>
+                <td class="amount"><span class="currency">{{ gross_profit | default('0.00') }}</span></td>
+            </tr>
+            <tr><td colspan="2">&nbsp;</td></tr> <!-- Spacer -->
+            {% endif %}
+
+            <!-- Operating Expenses Section -->
+            {% if operating_expense_items %}
+            <tr><td class="section-header" colspan="2">Operating Expenses:</td></tr>
+            {% for item in operating_expense_items %}
+            <tr class="sub-item">
+                <td class="description">{{ item.description }}</td>
+                <td class="amount"><span class="currency">{{ item.amount }}</span></td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td class="description">Total Operating Expenses</td>
+                <td class="amount"><span class="currency">{{ total_operating_expenses | default('0.00') }}</span></td>
+            </tr>
+            <tr class="total-row"> <!-- Operating Income -->
+                <td class="description">Operating Income</td>
+                <td class="amount"><span class="currency">{{ operating_income | default('0.00') }}</span></td>
+            </tr>
+            <tr><td colspan="2">&nbsp;</td></tr> <!-- Spacer -->
+            {% endif %}
+
+            <!-- Other Income/Expenses Section -->
+            {% if other_income_expense_items or total_other_income_expenses %}
+            <tr><td class="section-header" colspan="2">Other Income and (Expenses):</td></tr>
+            {% for item in other_income_expense_items %}
+            <tr class="sub-item">
+                <td class="description">{{ item.description }}</td>
+                <td class="amount"><span class="currency">{{ item.amount }}</span></td> <!-- Assuming amounts are pre-formatted if negative e.g. (200.00) or -200.00 -->
+            </tr>
+            {% endfor %}
+                {% if total_other_income_expenses %} <!-- Show this line only if the total is provided -->
+                <tr class="total-row">
+                    <td class="description">Total Other Income/(Expenses)</td>
+                    <td class="amount"><span class="currency">{{ total_other_income_expenses }}</span></td>
+                </tr>
+                {% endif %}
+            <tr class="total-row"> <!-- Income Before Tax -->
+                <td class="description">Income Before Tax</td>
+                <td class="amount"><span class="currency">{{ income_before_tax | default('0.00') }}</span></td>
+            </tr>
+            <tr><td colspan="2">&nbsp;</td></tr> <!-- Spacer -->
+            {% endif %}
+
+            <!-- Income Tax Expense -->
+            {% if income_tax_expense %}
+            <tr>
+                <td class="description section-header">Income Tax Expense</td>
+                <td class="amount section-header"><span class="currency">{{ income_tax_expense }}</span></td>
+            </tr>
+            <tr><td colspan="2">&nbsp;</td></tr> <!-- Spacer -->
+            {% endif %}
+
+            <!-- Net Income -->
+            <tr class="grand-total-row">
+                <td class="description">Net Income</td>
+                <td class="amount"><span class="currency">{{ net_income | default('0.00') }}</span></td>
+            </tr>
+        </table>
+
+        {% if notes_to_financial_statements %}
+        <div class="footer-notes" style="margin-top: 20px; font-size: 9pt;">
+            <h3>Notes:</h3>
+            <p style="white-space: pre-wrap;">{{ notes_to_financial_statements }}</p>
+        </div>
+        {% endif %}
+    </div>
 </body>
 </html>
