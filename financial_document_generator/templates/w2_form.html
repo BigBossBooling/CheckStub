@@ -2,11 +2,203 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>W2 Form</title>
-    <link rel="stylesheet" href="../static/style.css">
+    <title>W-2 Wage and Tax Statement {{ form_year | default('') }}</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 8pt; margin: 0; }
+        @page { margin: 0.25in; /* Minimal margins */ }
+        .w2-form { border: 1px solid #000; padding: 5px; width: 100%; box-sizing: border-box; }
+        .w2-header { text-align: center; margin-bottom: 5px; }
+        .w2-header h1 { font-size: 12pt; margin:0; padding:0; }
+        .w2-header h2 { font-size: 10pt; margin:0; padding:0; font-weight: normal; }
+
+        .box { border: 1px solid #000; padding: 2px; margin: 1px; box-sizing: border-box; }
+        .box .label { font-size: 6pt; color: #333; display: block; margin-bottom:1px; }
+        .box .value { font-size: 8pt; font-weight: bold; min-height: 10px; display: block; } /* min-height for empty fields */
+        .box.small-label .label { font-size: 5pt; }
+
+        .flex-container { display: flex; flex-wrap: nowrap; width: 100%; }
+        .flex-column { display: flex; flex-direction: column; }
+        .flex-row { display: flex; flex-direction: row; }
+
+        /* Widths are approximate and will need adjustment for perfect alignment */
+        .w-5p { width: 5%; } .w-10p { width: 10%; } .w-12p { width: 12%; } .w-15p { width: 15%; }
+        .w-18p { width: 18%; } .w-20p { width: 20%; } .w-22p { width: 22%; } .w-25p { width: 25%; }
+        .w-30p { width: 30%; } .w-33p { width: 33.33%; } .w-35p { width: 35%; } .w-40p { width: 40%; }
+        .w-45p { width: 45%; } .w-50p { width: 50%; } .w-60p { width: 60%; } .w-70p { width: 70%; }
+        .w-100p { width: 100%; }
+
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        .multi-line-address .value { min-height: 25px; } /* For employer/employee address */
+        .checkbox-area .value { font-size: 10pt; } /* Make checkboxes more visible if using characters */
+
+        .box12-code { width: 20%; }
+        .box12-amount { width: 80%; }
+        .box14-desc { width: 70%; }
+        .box14-amount { width: 30%; }
+    </style>
 </head>
 <body>
-    <h1>W2 Form</h1>
-    <!-- Add document-specific content here -->
+    <div class="w2-form">
+        <div class="w2-header">
+            <div style="float:left; font-size:6pt; text-align:left; max-width:150px;">Form W-2 OMB No. 1545-0008</div>
+            <div style="float:right; font-size:10pt; text-align:right;"><strong>{{ form_year | default('20XX') }}</strong></div>
+            <h1>Wage and Tax Statement</h1>
+            <h2>{{ copy_designation | default("Copy C, For EMPLOYEE'S RECORDS") }}</h2>
+        </div>
+        <div style="clear:both;"></div>
+
+        <div class="flex-container">
+            <!-- Left Column -->
+            <div class="flex-column w-50p">
+                <div class="box multi-line-address">
+                    <span class="label">b Employer identification number (EIN)</span>
+                    <span class="value">{{ employer_ein | default('') }}</span>
+                </div>
+                <div class="box multi-line-address">
+                    <span class="label">c Employer's name, address, and ZIP code</span>
+                    <span class="value">
+                        {{ employer_name_line1 | default('') }}<br>
+                        {% if employer_name_line2 %}{{ employer_name_line2 }}<br>{% endif %}
+                        {{ employer_address_line1 | default('') }}<br>
+                        {% if employer_address_line2 %}{{ employer_address_line2 }}<br>{% endif %}
+                        {{ employer_city | default('') }}, {{ employer_state_code | default('') }} {{ employer_zip_code | default('') }}{% if employer_zip_code_ext %}-{{ employer_zip_code_ext }}{% endif %}
+                    </span>
+                </div>
+                 <div class="box">
+                    <span class="label">d Control number</span>
+                    <span class="value">{{ control_number | default('') }}&nbsp;</span>
+                </div>
+            </div>
+            <!-- Right Column (Employee Info Top) -->
+            <div class="flex-column w-50p">
+                <div class="box">
+                    <span class="label">a Employee's social security number</span>
+                    <span class="value">{{ employee_ssn | default('') }}</span>
+                </div>
+                <div class="box multi-line-address">
+                    <span class="label">e Employee's first name and initial, last name, suffix</span>
+                    <span class="value">
+                        {{ employee_name_first | default('') }} {{ employee_name_last | default('') }} {% if employee_name_suffix %}{{ employee_name_suffix }}{% endif %}
+                    </span>
+                </div>
+                 <div class="box multi-line-address">
+                    <span class="label">f Employee's address and ZIP code</span>
+                     <span class="value">
+                        {{ employee_address_line1 | default('') }}<br>
+                        {% if employee_address_line2 %}{{ employee_address_line2 }}<br>{% endif %}
+                        {{ employee_city | default('') }}, {{ employee_state_code | default('') }} {{ employee_zip_code | default('') }}{% if employee_zip_code_ext %}-{{ employee_zip_code_ext }}{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-container">
+            <div class="flex-column w-33p">
+                <div class="box"><span class="label">1 Wages, tips, other comp.</span><span class="value">{{ wages_tips_other_comp | default('$0.00') }}</span></div>
+                <div class="box"><span class="label">3 Social security wages</span><span class="value">{{ social_security_wages | default('$0.00') }}</span></div>
+                <div class="box"><span class="label">5 Medicare wages and tips</span><span class="value">{{ medicare_wages_and_tips | default('$0.00') }}</span></div>
+                <div class="box"><span class="label">7 Social security tips</span><span class="value">{{ social_security_tips | default('') }}&nbsp;</span></div>
+                 <div class="box small-label"><span class="label">9 Verification code</span><span class="value">{{ verification_code | default('') }}&nbsp;</span></div>
+            </div>
+            <div class="flex-column w-33p">
+                <div class="box"><span class="label">2 Federal income tax withheld</span><span class="value">{{ federal_income_tax_withheld | default('$0.00') }}</span></div>
+                <div class="box"><span class="label">4 Social security tax withheld</span><span class="value">{{ social_security_tax_withheld | default('$0.00') }}</span></div>
+                <div class="box"><span class="label">6 Medicare tax withheld</span><span class="value">{{ medicare_tax_withheld | default('$0.00') }}</span></div>
+                <div class="box"><span class="label">8 Allocated tips</span><span class="value">{{ allocated_tips | default('') }}&nbsp;</span></div>
+                <div class="box small-label"><span class="label">10 Dependent care benefits</span><span class="value">{{ dependent_care_benefits | default('') }}&nbsp;</span></div>
+            </div>
+             <div class="flex-column w-33p"> <!-- Box 11, 12, 13 -->
+                <div class="box"><span class="label">11 Nonqualified plans</span><span class="value">{{ nonqualified_plans | default('') }}&nbsp;</span></div>
+                <div class="box" style="min-height:80px;"> <!-- Box 12 -->
+                    <span class="label">12a-d Codes</span>
+                    {% for item in box12_items %}
+                    <div class="flex-row value">
+                        <div class="box12-code">{{ item.code | default('') }}</div> <div class="box12-amount">{{ item.amount | default('') }}</div>
+                    </div>
+                    {% else %}
+                    <span class="value">&nbsp;</span> <!-- Placeholder if no items -->
+                    {% endfor %}
+                </div>
+             </div>
+        </div>
+
+        <div class="flex-container">
+            <div class="flex-column w-66p"> <!-- Box 13 and 14 -->
+                 <div class="box checkbox-area">
+                    <span class="label">13 Checkboxes</span>
+                    <span class="value">
+                        Statutory employee: <input type="checkbox" {% if statutory_employee_checkbox %}checked{% endif %} disabled> &nbsp;
+                        Retirement plan: <input type="checkbox" {% if retirement_plan_checkbox %}checked{% endif %} disabled> &nbsp;
+                        Third-party sick pay: <input type="checkbox" {% if third_party_sick_pay_checkbox %}checked{% endif %} disabled>
+                    </span>
+                </div>
+                <div class="box" style="min-height:60px;"> <!-- Box 14 -->
+                    <span class="label">14 Other</span>
+                    {% for item in box14_items %}
+                    <div class="flex-row value">
+                        <div class="box14-desc">{{ item.description | default('') }}</div> <div class="box14-amount">{{ item.amount | default('') }}</div>
+                    </div>
+                    {% else %}
+                     <span class="value">&nbsp;</span><!-- Placeholder -->
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="flex-column w-33p"> <!-- State and Local Info -->
+                <div class="box">
+                    <span class="label">15 State | Employer's state ID</span>
+                    <span class="value">
+                        {{ state_info_1.employer_state | default('') }} &nbsp; {{ state_info_1.employer_state_id | default('') }} <br>
+                        {% if state_info_2.employer_state %}{{ state_info_2.employer_state | default('') }} &nbsp; {{ state_info_2.employer_state_id | default('') }}{% else %}&nbsp;{% endif %}
+                    </span>
+                </div>
+                <div class="box">
+                    <span class="label">16 State wages, tips, etc.</span>
+                    <span class="value">
+                        {{ state_info_1.state_wages_tips | default('') }} <br>
+                        {% if state_info_2.state_wages_tips %}{{ state_info_2.state_wages_tips | default('') }}{% else %}&nbsp;{% endif %}
+                    </span>
+                </div>
+                 <div class="box">
+                    <span class="label">17 State income tax</span>
+                    <span class="value">
+                        {{ state_info_1.state_income_tax | default('') }} <br>
+                        {% if state_info_2.state_income_tax %}{{ state_info_2.state_income_tax | default('') }}{% else %}&nbsp;{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-container">
+             <div class="flex-column w-33p">
+                <div class="box"><span class="label">18 Local wages, tips, etc.</span>
+                    <span class="value">
+                        {{ local_info_1.local_wages_tips | default('') }} <br>
+                        {% if local_info_2.local_wages_tips %}{{ local_info_2.local_wages_tips | default('') }}{% else %}&nbsp;{% endif %}
+                    </span>
+                </div>
+             </div>
+             <div class="flex-column w-33p">
+                <div class="box"><span class="label">19 Local income tax</span>
+                    <span class="value">
+                        {{ local_info_1.local_income_tax | default('') }} <br>
+                        {% if local_info_2.local_income_tax %}{{ local_info_2.local_income_tax | default('') }}{% else %}&nbsp;{% endif %}
+                    </span>
+                </div>
+             </div>
+             <div class="flex-column w-33p">
+                <div class="box"><span class="label">20 Locality name</span>
+                    <span class="value">
+                        {{ local_info_1.locality_name | default('') }} <br>
+                        {% if local_info_2.locality_name %}{{ local_info_2.locality_name | default('') }}{% else %}&nbsp;{% endif %}
+                    </span>
+                </div>
+             </div>
+        </div>
+        <div style="font-size:6pt; margin-top:5px; text-align:left;">
+            <strong>Department of the Treasury</strong> - Internal Revenue Service<br>
+            For Privacy Act and Paperwork Reduction Act Notice, see separate instructions.
+        </div>
+    </div>
 </body>
 </html>
