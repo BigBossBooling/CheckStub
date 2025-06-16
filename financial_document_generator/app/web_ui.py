@@ -7,6 +7,7 @@ from .check_generator import generate_check # Assuming check_generator is in the
 from .check_stub_generator import generate_check_stub
 from .converters import convert_pdf_to_png, PDFInfoNotInstalledError
 from .bank_statement_generator import generate_bank_statement
+from .w2_form_generator import generate_w2_form
 
 # It's good practice to make template and static folder paths relative to the app
 # or use instance_path for more complex setups.
@@ -282,6 +283,102 @@ def generate_bank_statement_route():
             return redirect(url_for('generate_bank_statement_route'))
 
     return render_template('generate_bank_statement_form.html', title='Generate Bank Statement')
+
+@app.route('/generate/w2', methods=['GET', 'POST'])
+def generate_w2_route():
+    if request.method == 'POST':
+        try:
+            form_data = request.form
+            parsed_data = {}
+
+            # Simple fields
+            simple_fields = [
+                'form_year', 'copy_designation', 'control_number', 'employer_ein',
+                'employer_name_line1', 'employer_name_line2', 'employer_address_line1', 'employer_address_line2',
+                'employer_city', 'employer_state_code', 'employer_zip_code', 'employer_zip_code_ext',
+                'employee_ssn', 'employee_name_first', 'employee_name_last', 'employee_name_suffix',
+                'employee_address_line1', 'employee_address_line2', 'employee_city', 'employee_state_code',
+                'employee_zip_code', 'employee_zip_code_ext',
+                'wages_tips_other_comp', 'federal_income_tax_withheld', 'social_security_wages',
+                'social_security_tax_withheld', 'medicare_wages_and_tips', 'medicare_tax_withheld',
+                'social_security_tips', 'allocated_tips', 'verification_code',
+                'dependent_care_benefits', 'nonqualified_plans'
+            ]
+            for field in simple_fields:
+                parsed_data[field] = form_data.get(field, '')
+
+            # Checkboxes for Box 13
+            parsed_data['statutory_employee_checkbox'] = True if form_data.get('statutory_employee_checkbox') == 'true' else False
+            parsed_data['retirement_plan_checkbox'] = True if form_data.get('retirement_plan_checkbox') == 'true' else False
+            parsed_data['third_party_sick_pay_checkbox'] = True if form_data.get('third_party_sick_pay_checkbox') == 'true' else False
+
+            # Box 12 items (list of dicts) - up to 4
+            parsed_data['box12_items'] = []
+            for i in range(1, 5):
+                code = form_data.get(f'box12_{i}_code')
+                amount = form_data.get(f'box12_{i}_amount')
+                if code and amount: # Only add if both code and amount are present
+                    parsed_data['box12_items'].append({'code': code, 'amount': amount})
+
+            # Box 14 items (list of dicts) - up to 3
+            parsed_data['box14_items'] = []
+            for i in range(1, 4):
+                desc = form_data.get(f'box14_{i}_desc')
+                amount = form_data.get(f'box14_{i}_amount')
+                if desc and amount: # Only add if both description and amount are present
+                    parsed_data['box14_items'].append({'description': desc, 'amount': amount})
+
+            # State Info (dictionaries)
+            for i in range(1, 3): # state1, state2
+                state_key_prefix = f'state{i}'
+                if form_data.get(f'{state_key_prefix}_employer_state'): # Check if primary field for state exists
+                    parsed_data[f'state_info_{i}'] = {
+                        'employer_state': form_data.get(f'{state_key_prefix}_employer_state', ''),
+                        'employer_state_id': form_data.get(f'{state_key_prefix}_employer_state_id', ''),
+                        'state_wages_tips': form_data.get(f'{state_key_prefix}_state_wages_tips', ''),
+                        'state_income_tax': form_data.get(f'{state_key_prefix}_state_income_tax', '')
+                    }
+                else: # Ensure the key exists even if empty, as template might expect it
+                     parsed_data[f'state_info_{i}'] = {}
+
+
+            # Local Info (dictionaries)
+            for i in range(1, 3): # local1, local2
+                local_key_prefix = f'local{i}'
+                if form_data.get(f'{local_key_prefix}_locality_name'): # Check if primary field for local exists
+                     parsed_data[f'local_info_{i}'] = {
+                        'local_wages_tips': form_data.get(f'{local_key_prefix}_local_wages_tips', ''),
+                        'local_income_tax': form_data.get(f'{local_key_prefix}_local_income_tax', ''),
+                        'locality_name': form_data.get(f'{local_key_prefix}_locality_name', '')
+                    }
+                else: # Ensure the key exists even if empty
+                     parsed_data[f'local_info_{i}'] = {}
+
+
+            # Basic validation (can be more thorough)
+            if not parsed_data.get('employer_ein') or not parsed_data.get('employee_ssn'):
+                flash('Missing required W-2 fields (e.g., Employer EIN, Employee SSN).', 'error')
+                return redirect(url_for('generate_w2_route'))
+
+            pdf_bytes = generate_w2_form(parsed_data)
+
+            if pdf_bytes:
+                return send_file(
+                    io.BytesIO(pdf_bytes),
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=f"W2_form_{parsed_data.get('form_year', '')}_{parsed_data.get('employee_name_last', 'generated')}.pdf"
+                )
+            else:
+                flash('Failed to generate W-2 PDF. Rendering may have timed out or an error occurred. Check server logs.', 'error')
+                return redirect(url_for('generate_w2_route'))
+
+        except Exception as e:
+            app.logger.error(f"Error generating W-2 form: {e}", exc_info=True)
+            flash(f'An unexpected error occurred: {e}', 'error')
+            return redirect(url_for('generate_w2_route'))
+
+    return render_template('generate_w2_form.html', title='Generate W-2 Form')
 
 if __name__ == '__main__':
     # Make sure to run this from the project root (financial_document_generator)

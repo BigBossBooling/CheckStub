@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Generate W-2 Form</h2>
+<form method="POST" action="{{ url_for('generate_w2_route') }}">
+
+    <fieldset>
+        <legend>Form / Copy Information</legend>
+        <div><label for="form_year">Tax Year (e.g., 2023):</label><input type="text" id="form_year" name="form_year" value="2023" required></div>
+        <div><label for="copy_designation">Copy Designation:</label><input type="text" id="copy_designation" name="copy_designation" value="Copy B, To Be Filed With Employee's FEDERAL Tax Return" required></div>
+        <div><label for="control_number">Control Number (Optional):</label><input type="text" id="control_number" name="control_number"></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Employer Information (Box b, c)</legend>
+        <div><label for="employer_ein">b. Employer Identification Number (EIN):</label><input type="text" id="employer_ein" name="employer_ein" required></div>
+        <div><label for="employer_name_line1">c. Employer's Name (Line 1):</label><input type="text" id="employer_name_line1" name="employer_name_line1" required></div>
+        <div><label for="employer_name_line2">Employer's Name (Line 2, Optional):</label><input type="text" id="employer_name_line2" name="employer_name_line2"></div>
+        <div><label for="employer_address_line1">Address (Line 1):</label><input type="text" id="employer_address_line1" name="employer_address_line1" required></div>
+        <div><label for="employer_address_line2">Address (Line 2, Optional):</label><input type="text" id="employer_address_line2" name="employer_address_line2"></div>
+        <div><label for="employer_city">City:</label><input type="text" id="employer_city" name="employer_city" required></div>
+        <div><label for="employer_state_code">State Code (2 letters):</label><input type="text" id="employer_state_code" name="employer_state_code" maxlength="2" required></div>
+        <div><label for="employer_zip_code">ZIP Code:</label><input type="text" id="employer_zip_code" name="employer_zip_code" required></div>
+        <div><label for="employer_zip_code_ext">ZIP Code Ext (Optional):</label><input type="text" id="employer_zip_code_ext" name="employer_zip_code_ext" maxlength="4"></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Employee Information (Box a, e, f)</legend>
+        <div><label for="employee_ssn">a. Employee's Social Security Number:</label><input type="text" id="employee_ssn" name="employee_ssn" required></div>
+        <div><label for="employee_name_first">e. Employee's First Name & Initial:</label><input type="text" id="employee_name_first" name="employee_name_first" required></div>
+        <div><label for="employee_name_last">Employee's Last Name:</label><input type="text" id="employee_name_last" name="employee_name_last" required></div>
+        <div><label for="employee_name_suffix">Suffix (Optional):</label><input type="text" id="employee_name_suffix" name="employee_name_suffix"></div>
+        <div><label for="employee_address_line1">f. Employee's Address (Line 1):</label><input type="text" id="employee_address_line1" name="employee_address_line1" required></div>
+        <div><label for="employee_address_line2">Address (Line 2, Optional):</label><input type="text" id="employee_address_line2" name="employee_address_line2"></div>
+        <div><label for="employee_city">City:</label><input type="text" id="employee_city" name="employee_city" required></div>
+        <div><label for="employee_state_code">State Code (2 letters):</label><input type="text" id="employee_state_code" name="employee_state_code" maxlength="2" required></div>
+        <div><label for="employee_zip_code">ZIP Code:</label><input type="text" id="employee_zip_code" name="employee_zip_code" required></div>
+        <div><label for="employee_zip_code_ext">ZIP Code Ext (Optional):</label><input type="text" id="employee_zip_code_ext" name="employee_zip_code_ext" maxlength="4"></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Federal Wages and Withholdings (Boxes 1-11)</legend>
+        <div><label for="wages_tips_other_comp">1. Wages, tips, other compensation:</label><input type="text" name="wages_tips_other_comp" required></div>
+        <div><label for="federal_income_tax_withheld">2. Federal income tax withheld:</label><input type="text" name="federal_income_tax_withheld" required></div>
+        <div><label for="social_security_wages">3. Social security wages:</label><input type="text" name="social_security_wages" required></div>
+        <div><label for="social_security_tax_withheld">4. Social security tax withheld:</label><input type="text" name="social_security_tax_withheld" required></div>
+        <div><label for="medicare_wages_and_tips">5. Medicare wages and tips:</label><input type="text" name="medicare_wages_and_tips" required></div>
+        <div><label for="medicare_tax_withheld">6. Medicare tax withheld:</label><input type="text" name="medicare_tax_withheld" required></div>
+        <div><label for="social_security_tips">7. Social security tips (Optional):</label><input type="text" name="social_security_tips"></div>
+        <div><label for="allocated_tips">8. Allocated tips (Optional):</label><input type="text" name="allocated_tips"></div>
+        <div><label for="verification_code">9. Verification code (Optional):</label><input type="text" name="verification_code"></div>
+        <div><label for="dependent_care_benefits">10. Dependent care benefits (Optional):</label><input type="text" name="dependent_care_benefits"></div>
+        <div><label for="nonqualified_plans">11. Nonqualified plans (Optional):</label><input type="text" name="nonqualified_plans"></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Box 12 Codes & Amounts (Max 4)</legend>
+        {% for i in range(1, 5) %} <!-- Up to 4 Box 12 items (12a, 12b, 12c, 12d) -->
+        <h4>Item {{ loop.index }} (12{{ ['a', 'b', 'c', 'd'][loop.index0] }})</h4>
+        <div><label for="box12_{{i}}_code">Code:</label><input type="text" name="box12_{{i}}_code" maxlength="2"></div>
+        <div><label for="box12_{{i}}_amount">Amount:</label><input type="text" name="box12_{{i}}_amount"></div>
+        {% if not loop.last %}<hr style="margin:5px 0;">{% endif %}
+        {% endfor %}
+    </fieldset>
+
+    <fieldset>
+        <legend>Box 13 Checkboxes</legend>
+        <div><input type="checkbox" id="statutory_employee_checkbox" name="statutory_employee_checkbox" value="true"><label for="statutory_employee_checkbox" style="display:inline; font-weight:normal;"> Statutory employee</label></div>
+        <div><input type="checkbox" id="retirement_plan_checkbox" name="retirement_plan_checkbox" value="true"><label for="retirement_plan_checkbox" style="display:inline; font-weight:normal;"> Retirement plan</label></div>
+        <div><input type="checkbox" id="third_party_sick_pay_checkbox" name="third_party_sick_pay_checkbox" value="true"><label for="third_party_sick_pay_checkbox" style="display:inline; font-weight:normal;"> Third-party sick pay</label></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Box 14 Other (Max 3 entries for this form)</legend>
+        {% for i in range(1, 4) %}
+        <h4>Item {{ i }}</h4>
+        <div><label for="box14_{{i}}_desc">Description:</label><input type="text" name="box14_{{i}}_desc"></div>
+        <div><label for="box14_{{i}}_amount">Amount:</label><input type="text" name="box14_{{i}}_amount"></div>
+        {% if not loop.last %}<hr style="margin:5px 0;">{% endif %}
+        {% endfor %}
+    </fieldset>
+
+    <fieldset>
+        <legend>State & Local Information (Box 15-20)</legend>
+        <p><strong>State 1:</strong></p>
+        <div><label for="state1_employer_state">15. State Code:</label><input type="text" name="state1_employer_state" maxlength="2"></div>
+        <div><label for="state1_employer_state_id">Employer's State ID:</label><input type="text" name="state1_employer_state_id"></div>
+        <div><label for="state1_state_wages_tips">16. State wages, tips, etc.:</label><input type="text" name="state1_state_wages_tips"></div>
+        <div><label for="state1_state_income_tax">17. State income tax:</label><input type="text" name="state1_state_income_tax"></div>
+        <hr>
+        <p><strong>State 2 (Optional):</strong></p>
+        <div><label for="state2_employer_state">15. State Code:</label><input type="text" name="state2_employer_state" maxlength="2"></div>
+        <div><label for="state2_employer_state_id">Employer's State ID:</label><input type="text" name="state2_employer_state_id"></div>
+        <div><label for="state2_state_wages_tips">16. State wages, tips, etc.:</label><input type="text" name="state2_state_wages_tips"></div>
+        <div><label for="state2_state_income_tax">17. State income tax:</label><input type="text" name="state2_state_income_tax"></div>
+        <hr>
+        <p><strong>Local 1:</strong></p>
+        <div><label for="local1_local_wages_tips">18. Local wages, tips, etc.:</label><input type="text" name="local1_local_wages_tips"></div>
+        <div><label for="local1_local_income_tax">19. Local income tax:</label><input type="text" name="local1_local_income_tax"></div>
+        <div><label for="local1_locality_name">20. Locality name:</label><input type="text" name="local1_locality_name"></div>
+        <hr>
+        <p><strong>Local 2 (Optional):</strong></p>
+        <div><label for="local2_local_wages_tips">18. Local wages, tips, etc.:</label><input type="text" name="local2_local_wages_tips"></div>
+        <div><label for="local2_local_income_tax">19. Local income tax:</label><input type="text" name="local2_local_income_tax"></div>
+        <div><label for="local2_locality_name">20. Locality name:</label><input type="text" name="local2_locality_name"></div>
+    </fieldset>
+
+    <br>
+    <button type="submit">Generate W-2 PDF</button>
+</form>
+{% endblock %}
