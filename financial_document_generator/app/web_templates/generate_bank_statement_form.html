@@ -28,17 +28,11 @@
     </fieldset>
 
     <fieldset>
-        <legend>Transactions (Simplified - Max 3 for this form)</legend>
-        <p><em>Enter transaction details. Leave unused rows blank. Ensure running balance is calculated correctly if entered manually.</em></p>
-        {% for i in range(1, 4) %} <!-- Create 3 transaction input groups -->
-        <h4>Transaction {{ i }}</h4>
-        <div><label for="trx{{i}}_date">Date:</label><input type="text" name="trx{{i}}_date"></div>
-        <div><label for="trx{{i}}_desc">Description:</label><input type="text" name="trx{{i}}_desc"></div>
-        <div><label for="trx{{i}}_withdrawal">Withdrawal (-):</label><input type="text" name="trx{{i}}_withdrawal"></div>
-        <div><label for="trx{{i}}_deposit">Deposit (+):</label><input type="text" name="trx{{i}}_deposit"></div>
-        <div><label for="trx{{i}}_balance">Running Balance:</label><input type="text" name="trx{{i}}_balance"></div>
-        {% if not loop.last %}<hr style="margin:10px 0;">{% endif %}
-        {% endfor %}
+        <legend>Transactions</legend>
+        <div id="transactions_section">
+            <!-- Transaction rows will be added here by JavaScript -->
+        </div>
+        <button type="button" onclick="addTransactionRow()" style="margin-top: 10px;">Add Transaction</button>
     </fieldset>
 
     <fieldset>
@@ -51,4 +45,45 @@
     <br>
     <button type="submit">Generate Bank Statement PDF</button>
 </form>
+
+<script>
+    let transactionIdx = 0;
+
+    function addTransactionRow() {
+        transactionIdx++;
+        const section = document.getElementById('transactions_section');
+        const row = document.createElement('div');
+        row.className = 'dynamic-row transaction-row-' + transactionIdx;
+        // Note: Corrected name attributes to be trx_date_idx, trx_desc_idx etc.
+        row.innerHTML = `
+            <h4>Transaction ${transactionIdx} <button type="button" onclick="removeRow('transaction-row-${transactionIdx}')">Remove</button></h4>
+            <div><label for="trx_date_${transactionIdx}">Date:</label><input type="text" id="trx_date_${transactionIdx}" name="trx_date_${transactionIdx}"></div>
+            <div><label for="trx_desc_${transactionIdx}">Description:</label><input type="text" id="trx_desc_${transactionIdx}" name="trx_desc_${transactionIdx}"></div>
+            <div><label for="trx_withdrawal_${transactionIdx}">Withdrawal (-):</label><input type="text" id="trx_withdrawal_${transactionIdx}" name="trx_withdrawal_${transactionIdx}" value="0.00"></div>
+            <div><label for="trx_deposit_${transactionIdx}">Deposit (+):</label><input type="text" id="trx_deposit_${transactionIdx}" name="trx_deposit_${transactionIdx}" value="0.00"></div>
+            <div><label for="trx_balance_${transactionIdx}">Running Balance:</label><input type="text" id="trx_balance_${transactionIdx}" name="trx_balance_${transactionIdx}"></div>
+            <hr style="margin:10px 0;">
+        `;
+        section.appendChild(row);
+    }
+
+    // Generic removeRow function - can be reused if another form needs it
+    // Or make it specific if needed: removeTransactionRow
+    function removeRow(rowClassName) {
+        const rowToRemove = document.querySelector('.' + rowClassName);
+        if (rowToRemove) {
+            rowToRemove.remove();
+        }
+        // Note: Totals calculation for bank statement is not part of this step.
+        // Unlike check stub, bank statement totals (opening/closing balance) are usually fixed for the period.
+        // Running balance is per transaction.
+    }
+
+    // Add one transaction row by default for user convenience
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('transactions_section')) { // Ensure this script only runs on this page essentially
+             addTransactionRow();
+        }
+    });
+</script>
 {% endblock %}

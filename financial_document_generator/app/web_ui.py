@@ -238,20 +238,30 @@ def generate_bank_statement_route():
             form_data = request.form.to_dict()
             parsed_data = form_data.copy()
 
-            # Parse Transactions (up to 3 from the form)
+            # Parse Dynamic Transactions
             parsed_data['transactions'] = []
-            for i in range(1, 4): # Corresponds to trx1, trx2, trx3 in form
-                trx_date = form_data.get(f'trx{i}_date')
-                trx_desc = form_data.get(f'trx{i}_desc')
-                # Only add transaction if at least date and description are present
+            trx_idx = 1
+            while True:
+                # Use the new field name convention from the updated HTML/JS (e.g., trx_date_1, trx_desc_1)
+                date_key = f'trx_date_{trx_idx}'
+                desc_key = f'trx_desc_{trx_idx}'
+
+                trx_date = form_data.get(date_key)
+                trx_desc = form_data.get(desc_key)
+
+                # A transaction is considered present if its date and description are provided
                 if trx_date and trx_desc:
                     parsed_data['transactions'].append({
                         'date': trx_date,
                         'description': trx_desc,
-                        'withdrawal_amount': form_data.get(f'trx{i}_withdrawal', ''),
-                        'deposit_amount': form_data.get(f'trx{i}_deposit', ''),
-                        'running_balance': form_data.get(f'trx{i}_balance', '')
+                        'withdrawal_amount': form_data.get(f'trx_withdrawal_{trx_idx}', ''),
+                        'deposit_amount': form_data.get(f'trx_deposit_{trx_idx}', ''),
+                        'running_balance': form_data.get(f'trx_balance_{trx_idx}', '')
                     })
+                    trx_idx += 1
+                else:
+                    # Stop if a primary field (like date or description) for the current index is missing
+                    break
 
             # Parse Summary Messages (from textarea, one per line)
             summary_messages_str = form_data.get('summary_messages', '')
