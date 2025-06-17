@@ -17,7 +17,7 @@
             <!-- Revenue items will be added here by JavaScript -->
         </div>
         <button type="button" onclick="addRevenueItemRow()">Add Revenue Item</button>
-        <div><label for="total_revenue">Total Revenue (Manual):</label><input type="text" id="total_revenue" name="total_revenue" value="0.00" required></div>
+        <div><label for="total_revenue">Total Revenue:</label><input type="text" id="total_revenue" name="total_revenue" value="0.00" required readonly></div>
     </fieldset>
 
     <fieldset>
@@ -26,8 +26,8 @@
             <!-- COGS items will be added here by JavaScript -->
         </div>
         <button type="button" onclick="addCogsItemRow()">Add COGS Item</button>
-        <div><label for="total_cogs">Total COGS (Manual):</label><input type="text" id="total_cogs" name="total_cogs" value="0.00"></div>
-        <div><label for="gross_profit">Gross Profit (Manual):</label><input type="text" id="gross_profit" name="gross_profit" value="0.00" required></div>
+        <div><label for="total_cogs">Total COGS:</label><input type="text" id="total_cogs" name="total_cogs" value="0.00" readonly></div>
+        <div><label for="gross_profit">Gross Profit:</label><input type="text" id="gross_profit" name="gross_profit" value="0.00" required readonly></div>
     </fieldset>
 
     <fieldset>
@@ -36,8 +36,8 @@
             <!-- Operating expense items will be added here by JavaScript -->
         </div>
         <button type="button" onclick="addOperatingExpenseItemRow()">Add Operating Expense</button>
-        <div><label for="total_operating_expenses">Total Operating Expenses (Manual):</label><input type="text" id="total_operating_expenses" name="total_operating_expenses" value="0.00" required></div>
-        <div><label for="operating_income">Operating Income (Manual):</label><input type="text" id="operating_income" name="operating_income" value="0.00" required></div>
+        <div><label for="total_operating_expenses">Total Operating Expenses:</label><input type="text" id="total_operating_expenses" name="total_operating_expenses" value="0.00" required readonly></div>
+        <div><label for="operating_income">Operating Income:</label><input type="text" id="operating_income" name="operating_income" value="0.00" required readonly></div>
     </fieldset>
 
     <fieldset>
@@ -46,14 +46,14 @@
             <!-- Other income/expense items will be added here by JavaScript -->
         </div>
         <button type="button" onclick="addOtherIncomeExpenseItemRow()">Add Other Income/Expense Item</button>
-        <div><label for="total_other_income_expenses">Total Other Income/Expenses (Net, Manual):</label><input type="text" id="total_other_income_expenses" name="total_other_income_expenses" value="0.00"></div>
-        <div><label for="income_before_tax">Income Before Tax (Manual):</label><input type="text" id="income_before_tax" name="income_before_tax" value="0.00" required></div>
+        <div><label for="total_other_income_expenses">Total Other Income/Expenses (Net):</label><input type="text" id="total_other_income_expenses" name="total_other_income_expenses" value="0.00" readonly></div>
+        <div><label for="income_before_tax">Income Before Tax:</label><input type="text" id="income_before_tax" name="income_before_tax" value="0.00" required readonly></div>
     </fieldset>
 
     <fieldset>
         <legend>Tax & Net Income</legend>
-        <div><label for="income_tax_expense">Income Tax Expense (Manual):</label><input type="text" id="income_tax_expense" name="income_tax_expense" value="0.00"></div>
-        <div><label for="net_income">Net Income (Manual):</label><input type="text" id="net_income" name="net_income" value="0.00" required></div>
+        <div><label for="income_tax_expense">Income Tax Expense:</label><input type="text" id="income_tax_expense" name="income_tax_expense" value="0.00"></div> <!-- Stays editable -->
+        <div><label for="net_income">Net Income:</label><input type="text" id="net_income" name="net_income" value="0.00" required readonly></div>
     </fieldset>
 
     <fieldset>
@@ -66,12 +66,49 @@
 </form>
 
 <script>
-    // Generic removeRow function (can be shared if moved to a global JS file)
+    // Generic removeRow function
     function removeRow(rowClassName) {
         const rowToRemove = document.querySelector('.' + rowClassName);
         if (rowToRemove) {
             rowToRemove.remove();
+            updateIncomeStatementTotals(); // Call after removing any row
         }
+    }
+
+    function getSumOfAmounts(selectorPrefix) {
+        let total = 0;
+        document.querySelectorAll(`input[name^="${selectorPrefix}_"][name$="_amount"]`).forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        return total;
+    }
+
+    function updateIncomeStatementTotals() {
+        const totalRevenue = getSumOfAmounts('revenue');
+        document.getElementById('total_revenue').value = totalRevenue.toFixed(2);
+
+        const totalCogs = getSumOfAmounts('cogs');
+        document.getElementById('total_cogs').value = totalCogs.toFixed(2);
+
+        const grossProfit = totalRevenue - totalCogs;
+        document.getElementById('gross_profit').value = grossProfit.toFixed(2);
+
+        const totalOperatingExpenses = getSumOfAmounts('opex');
+        document.getElementById('total_operating_expenses').value = totalOperatingExpenses.toFixed(2);
+
+        const operatingIncome = grossProfit - totalOperatingExpenses;
+        document.getElementById('operating_income').value = operatingIncome.toFixed(2);
+
+        const totalOtherIncomeExpenses = getSumOfAmounts('otherincex'); // Amounts can be negative
+        document.getElementById('total_other_income_expenses').value = totalOtherIncomeExpenses.toFixed(2);
+
+        const incomeBeforeTax = operatingIncome + totalOtherIncomeExpenses;
+        document.getElementById('income_before_tax').value = incomeBeforeTax.toFixed(2);
+
+        const incomeTaxExpense = parseFloat(document.getElementById('income_tax_expense').value) || 0;
+
+        const netIncome = incomeBeforeTax - incomeTaxExpense;
+        document.getElementById('net_income').value = netIncome.toFixed(2);
     }
 
     // Revenue Items
@@ -84,10 +121,12 @@
         row.innerHTML = `
             <h4>Revenue Item ${revenueIdx} <button type="button" onclick="removeRow('revenue-item-row-${revenueIdx}')">Remove</button></h4>
             <div><label for="revenue_${revenueIdx}_desc">Description:</label><input type="text" name="revenue_${revenueIdx}_desc"></div>
-            <div><label for="revenue_${revenueIdx}_amount">Amount:</label><input type="text" name="revenue_${revenueIdx}_amount" value="0.00"></div>
+            <div><label for="revenue_${revenueIdx}_amount">Amount:</label><input type="text" class="item-amount" name="revenue_${revenueIdx}_amount" value="0.00"></div>
             <hr style="margin:10px 0;">
         `;
         section.appendChild(row);
+        row.querySelector('.item-amount').addEventListener('input', updateIncomeStatementTotals);
+        updateIncomeStatementTotals();
     }
 
     // COGS Items
@@ -100,10 +139,12 @@
         row.innerHTML = `
             <h4>COGS Item ${cogsIdx} <button type="button" onclick="removeRow('cogs-item-row-${cogsIdx}')">Remove</button></h4>
             <div><label for="cogs_${cogsIdx}_desc">Description:</label><input type="text" name="cogs_${cogsIdx}_desc"></div>
-            <div><label for="cogs_${cogsIdx}_amount">Amount:</label><input type="text" name="cogs_${cogsIdx}_amount" value="0.00"></div>
+            <div><label for="cogs_${cogsIdx}_amount">Amount:</label><input type="text" class="item-amount" name="cogs_${cogsIdx}_amount" value="0.00"></div>
             <hr style="margin:10px 0;">
         `;
         section.appendChild(row);
+        row.querySelector('.item-amount').addEventListener('input', updateIncomeStatementTotals);
+        updateIncomeStatementTotals();
     }
 
     // Operating Expense Items
@@ -116,10 +157,12 @@
         row.innerHTML = `
             <h4>Operating Expense ${opExIdx} <button type="button" onclick="removeRow('opex-item-row-${opExIdx}')">Remove</button></h4>
             <div><label for="opex_${opExIdx}_desc">Description:</label><input type="text" name="opex_${opExIdx}_desc"></div>
-            <div><label for="opex_${opExIdx}_amount">Amount:</label><input type="text" name="opex_${opExIdx}_amount" value="0.00"></div>
+            <div><label for="opex_${opExIdx}_amount">Amount:</label><input type="text" class="item-amount" name="opex_${opExIdx}_amount" value="0.00"></div>
             <hr style="margin:10px 0;">
         `;
         section.appendChild(row);
+        row.querySelector('.item-amount').addEventListener('input', updateIncomeStatementTotals);
+        updateIncomeStatementTotals();
     }
 
     // Other Income/Expense Items
@@ -132,18 +175,30 @@
         row.innerHTML = `
             <h4>Other Income/Expense ${otherIncExIdx} <button type="button" onclick="removeRow('otherincex-item-row-${otherIncExIdx}')">Remove</button></h4>
             <div><label for="otherincex_${otherIncExIdx}_desc">Description:</label><input type="text" name="otherincex_${otherIncExIdx}_desc"></div>
-            <div><label for="otherincex_${otherIncExIdx}_amount">Amount (use negative for expense if applicable):</label><input type="text" name="otherincex_${otherIncExIdx}_amount" value="0.00"></div>
+            <div><label for="otherincex_${otherIncExIdx}_amount">Amount (use negative for expense if applicable):</label><input type="text" class="item-amount" name="otherincex_${otherIncExIdx}_amount" value="0.00"></div>
             <hr style="margin:10px 0;">
         `;
         section.appendChild(row);
+        row.querySelector('.item-amount').addEventListener('input', updateIncomeStatementTotals);
+        updateIncomeStatementTotals();
     }
 
-    // Add one of each item row by default
     document.addEventListener('DOMContentLoaded', function() {
+        // Add default rows
         if (document.getElementById('revenue_items_section')) addRevenueItemRow();
-        if (document.getElementById('cogs_items_section')) addCogsItemRow();
+        // Optional: Do not add COGS/Other Income by default to keep form cleaner initially
+        // if (document.getElementById('cogs_items_section')) addCogsItemRow();
         if (document.getElementById('operating_expense_items_section')) addOperatingExpenseItemRow();
-        if (document.getElementById('other_income_expense_items_section')) addOtherIncomeExpenseItemRow();
+        // if (document.getElementById('other_income_expense_items_section')) addOtherIncomeExpenseItemRow();
+
+        // Add listener for income_tax_expense field
+        const taxField = document.getElementById('income_tax_expense');
+        if (taxField) {
+            taxField.addEventListener('input', updateIncomeStatementTotals);
+        }
+
+        // Initial calculation
+        updateIncomeStatementTotals();
     });
 </script>
 {% endblock %}
