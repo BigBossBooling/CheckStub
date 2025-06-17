@@ -73,33 +73,67 @@ def ping():
 @app.route('/generate/check', methods=['GET', 'POST'])
 def generate_check_route():
     if request.method == 'POST':
+        # Inside generate_check_route, within if request.method == 'POST':
         try:
-            form_data = request.form.to_dict()
+            form_data_dict = request.form.to_dict() # Keep for passing to generate_check if valid
+            form_data_for_repopulation = request.form # Use this for repopulating template
+            errors = []
 
-            # Basic validation/conversion (more robust validation could be added)
-            if not form_data.get('bank_name') or not form_data.get('payee_name') or \
-               not form_data.get('amount_numeric') or not form_data.get('amount_words'):
-                flash('Missing required check fields.', 'error')
-                return redirect(url_for('generate_check_route'))
+            # Rule 1: Required fields
+            required_fields = {
+                'bank_name': "Bank Name",
+                'check_number': "Check Number",
+                'date': "Date",
+                'payee_name': "Payee Name",
+                'amount_numeric': "Amount (Numeric)",
+                'amount_words': "Amount (In Words)"
+            }
+            for field, display_name in required_fields.items():
+                if not form_data_for_repopulation.get(field):
+                    errors.append(f"{display_name} is required.")
 
-            # Call the existing generate_check function
-            # Assuming it returns PDF bytes when output_path is None
-            pdf_bytes = generate_check(form_data)
+            # Rule 2: amount_numeric must be a positive number
+            amount_numeric_str = form_data_for_repopulation.get('amount_numeric')
+            if amount_numeric_str: # Only proceed if it's not caught by 'required'
+                try:
+                    amount_val = float(amount_numeric_str)
+                    if amount_val <= 0:
+                        errors.append("Amount (Numeric) must be a positive value.")
+                except ValueError:
+                    errors.append("Amount (Numeric) must be a valid number (e.g., 123.45).")
+
+            # Rule 3: check_number should be numeric (integer-like)
+            check_number_str = form_data_for_repopulation.get('check_number')
+            if check_number_str and not check_number_str.isdigit():
+                errors.append("Check Number should consist of digits only.")
+
+            # If there are any errors, flash them and re-render the form
+            if errors:
+                for error in errors:
+                    flash(error, 'error')
+                return render_template('generate_check_form.html', title='Generate Check', form_data=form_data_for_repopulation)
+
+            # If validation passes, proceed to generate PDF
+            # Use form_data_dict for the generate_check function as it expects a dict
+            pdf_bytes = generate_check(form_data_dict)
 
             if pdf_bytes:
                 return send_file(
                     io.BytesIO(pdf_bytes),
                     mimetype='application/pdf',
                     as_attachment=True,
-                    download_name=f"check_{form_data.get('check_number', 'generated')}.pdf"
+                    download_name=f"check_{form_data_dict.get('check_number', 'generated')}.pdf"
                 )
             else:
-                flash('Failed to generate check PDF. Please check server logs.', 'error')
-                return redirect(url_for('generate_check_route'))
+                # This else implies generate_check returned None (internal error or timeout)
+                flash('Failed to generate check PDF. An internal error occurred or task timed out. Please check server logs.', 'error')
+                # Re-render form with data, as it was valid input but generation failed
+                return render_template('generate_check_form.html', title='Generate Check', form_data=form_data_for_repopulation)
 
         except Exception as e:
-            app.logger.error(f"Error generating check: {e}", exc_info=True)
-            flash(f'An unexpected error occurred: {e}', 'error')
+            app.logger.error(f"Error in generate_check_route: {e}", exc_info=True)
+            flash(f'An unexpected server error occurred: {e}', 'error')
+            # On general exception, redirect to avoid re-POST, but don't repopulate form (or pass form_data if desired)
             return redirect(url_for('generate_check_route'))
 
     return render_template('generate_check_form.html', title='Generate Check')
