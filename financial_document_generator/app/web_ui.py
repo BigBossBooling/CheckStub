@@ -414,90 +414,216 @@ def generate_bank_statement_route():
 def generate_w2_route():
     if request.method == 'POST':
         try:
-            form_data = request.form
-            parsed_data = {}
+            form_data_for_repopulation = request.form # Use this for repopulating template
+            errors = []
 
-            # Simple fields
-            simple_fields = [
-                'form_year', 'copy_designation', 'control_number', 'employer_ein',
-                'employer_name_line1', 'employer_name_line2', 'employer_address_line1', 'employer_address_line2',
-                'employer_city', 'employer_state_code', 'employer_zip_code', 'employer_zip_code_ext',
-                'employee_ssn', 'employee_name_first', 'employee_name_last', 'employee_name_suffix',
-                'employee_address_line1', 'employee_address_line2', 'employee_city', 'employee_state_code',
-                'employee_zip_code', 'employee_zip_code_ext',
+            # Data to be passed to the generator if validation succeeds
+            validated_data = {}
+
+            # --- 1. Static Required Fields & Basic Format Checks ---
+            required_fields = {
+                'form_year': "Form Year", 'employer_ein': "Employer EIN",
+                'employer_name_line1': "Employer's Name (Line 1)",
+                'employer_address_line1': "Employer Address (Line 1)", 'employer_city': "Employer City",
+                'employer_state_code': "Employer State Code", 'employer_zip_code': "Employer ZIP Code",
+                'employee_ssn': "Employee SSN", 'employee_name_first': "Employee First Name",
+                'employee_name_last': "Employee Last Name",
+                'employee_address_line1': "Employee Address (Line 1)", 'employee_city': "Employee City",
+                'employee_state_code': "Employee State Code", 'employee_zip_code': "Employee ZIP Code",
+                'wages_tips_other_comp': "Box 1 (Wages, tips, other comp.)",
+                'federal_income_tax_withheld': "Box 2 (Federal income tax withheld)",
+                'social_security_wages': "Box 3 (Social security wages)",
+                'social_security_tax_withheld': "Box 4 (Social security tax withheld)",
+                'medicare_wages_and_tips': "Box 5 (Medicare wages and tips)",
+                'medicare_tax_withheld': "Box 6 (Medicare tax withheld)"
+            }
+            for field, display_name in required_fields.items():
+                value = form_data_for_repopulation.get(field, '').strip()
+                if not value:
+                    errors.append(f"{display_name} is required.")
+                validated_data[field] = value # Store it for now, further format checks below
+
+            # Optional static fields (just copy them if present)
+            optional_static_fields = [
+                'copy_designation', 'control_number', 'employer_name_line2', 'employer_address_line2',
+                'employer_zip_code_ext', 'employee_name_suffix', 'employee_address_line2',
+                'employee_zip_code_ext', 'social_security_tips', 'allocated_tips',
+                'verification_code', 'dependent_care_benefits', 'nonqualified_plans'
+            ]
+            for field in optional_static_fields:
+                validated_data[field] = form_data_for_repopulation.get(field, '').strip()
+
+            # --- 2. Format/Pattern Checks for specific static fields ---
+            year_str = validated_data.get('form_year','')
+            if year_str and (not year_str.isdigit() or len(year_str) != 4):
+                errors.append("Form Year must be 4 digits.")
+
+            # EIN: XX-XXXXXXX
+            ein_str = validated_data.get('employer_ein','')
+            if ein_str and not (len(ein_str) == 10 and ein_str[2] == '-' and ein_str.replace('-', '').isdigit()):
+                errors.append("Employer EIN must be in XX-XXXXXXX format.")
+
+            # SSN: XXX-XX-XXXX
+            ssn_str = validated_data.get('employee_ssn','')
+            if ssn_str and not (len(ssn_str) == 11 and ssn_str[3] == '-' and ssn_str[6] == '-' and ssn_str.replace('-', '').isdigit()):
+                errors.append("Employee SSN must be in XXX-XX-XXXX format.")
+
+            for field_key, display_name in [('employer_state_code', 'Employer State Code'), ('employee_state_code', 'Employee State Code')]:
+                state_code = validated_data.get(field_key,'')
+                if state_code and not (len(state_code) == 2 and state_code.isalpha() and state_code.isupper()):
+                    errors.append(f"{display_name} must be 2 uppercase letters.")
+
+            for field_key, display_name in [('employer_zip_code', 'Employer ZIP'), ('employee_zip_code', 'Employee ZIP')]:
+                zip_code = validated_data.get(field_key,'')
+                if zip_code and not (len(zip_code) == 5 and zip_code.isdigit()):
+                    errors.append(f"{display_name} must be 5 digits.")
+
+            for field_key, display_name in [('employer_zip_code_ext', 'Employer ZIP Ext.'), ('employee_zip_code_ext', 'Employee ZIP Ext.')]:
+                zip_ext = validated_data.get(field_key,'')
+                if zip_ext and not (len(zip_ext) == 4 and zip_ext.isdigit()): # Only validate if present
+                    errors.append(f"{display_name} must be 4 digits if provided.")
+
+
+            # --- 3. Numeric Field Checks (for wages, taxes etc.) ---
+            # Includes fields from Box 1-8, 10, 11. More added for state/local later.
+            monetary_fields_positive_or_zero = [
                 'wages_tips_other_comp', 'federal_income_tax_withheld', 'social_security_wages',
                 'social_security_tax_withheld', 'medicare_wages_and_tips', 'medicare_tax_withheld',
-                'social_security_tips', 'allocated_tips', 'verification_code',
-                'dependent_care_benefits', 'nonqualified_plans'
+                'social_security_tips', 'allocated_tips', 'dependent_care_benefits', 'nonqualified_plans'
             ]
-            for field in simple_fields:
-                parsed_data[field] = form_data.get(field, '')
+            for field in monetary_fields_positive_or_zero:
+                value_str = validated_data.get(field, '') # Already in validated_data from required/optional
+                if value_str: # If present (optional fields might be empty)
+                    try:
+                        val = float(value_str)
+                        if val < 0:
+                            errors.append(f"{required_fields.get(field, field)} must be zero or positive.")
+                    except ValueError:
+                        errors.append(f"{required_fields.get(field, field)} must be a valid number.")
 
-            # Checkboxes for Box 13
-            parsed_data['statutory_employee_checkbox'] = True if form_data.get('statutory_employee_checkbox') == 'true' else False
-            parsed_data['retirement_plan_checkbox'] = True if form_data.get('retirement_plan_checkbox') == 'true' else False
-            parsed_data['third_party_sick_pay_checkbox'] = True if form_data.get('third_party_sick_pay_checkbox') == 'true' else False
+            # --- 4. Box 12 Items ---
+            validated_data['box12_items'] = []
+            for i in range(1, 5): # Max 4 items (12a, 12b, 12c, 12d)
+                code = form_data_for_repopulation.get(f'box12_{i}_code', '').strip()
+                amount_str = form_data_for_repopulation.get(f'box12_{i}_amount', '').strip()
+                if code or amount_str: # If either part of a Box 12 item is present, validate it
+                    if not code:
+                        errors.append(f"Code for Box 12 Item {i} is required if amount is present.")
+                    # TODO: Add validation for code format if known (e.g. 1 or 2 chars, often uppercase)
+                    if not amount_str:
+                        errors.append(f"Amount for Box 12 Item {i} (Code: {code}) is required if code is present.")
+                    else:
+                        try:
+                            val = float(amount_str)
+                            # Amounts in Box 12 can be various things, typically positive.
+                            if val < 0: errors.append(f"Amount for Box 12 Item {i} (Code: {code}) should generally be zero or positive.")
+                        except ValueError:
+                            errors.append(f"Amount for Box 12 Item {i} (Code: {code}) must be a valid number.")
+                    if code and amount_str: # Only add if both parts were somewhat there
+                         validated_data['box12_items'].append({'code': code, 'amount': amount_str})
 
-            # Box 12 items (list of dicts) - up to 4
-            parsed_data['box12_items'] = []
-            for i in range(1, 5):
-                code = form_data.get(f'box12_{i}_code')
-                amount = form_data.get(f'box12_{i}_amount')
-                if code and amount: # Only add if both code and amount are present
-                    parsed_data['box12_items'].append({'code': code, 'amount': amount})
+            # --- 5. Box 13 Checkboxes ---
+            validated_data['statutory_employee_checkbox'] = True if form_data_for_repopulation.get('statutory_employee_checkbox') == 'true' else False
+            validated_data['retirement_plan_checkbox'] = True if form_data_for_repopulation.get('retirement_plan_checkbox') == 'true' else False
+            validated_data['third_party_sick_pay_checkbox'] = True if form_data_for_repopulation.get('third_party_sick_pay_checkbox') == 'true' else False
 
-            # Box 14 items (list of dicts) - up to 3
-            parsed_data['box14_items'] = []
-            for i in range(1, 4):
-                desc = form_data.get(f'box14_{i}_desc')
-                amount = form_data.get(f'box14_{i}_amount')
-                if desc and amount: # Only add if both description and amount are present
-                    parsed_data['box14_items'].append({'description': desc, 'amount': amount})
+            # --- 6. Box 14 Items ---
+            validated_data['box14_items'] = []
+            for i in range(1, 4): # Max 3 items from form
+                desc = form_data_for_repopulation.get(f'box14_{i}_desc', '').strip()
+                amount_str = form_data_for_repopulation.get(f'box14_{i}_amount', '').strip()
+                if desc or amount_str:
+                    if not desc:
+                        errors.append(f"Description for Box 14 Item {i} is required if amount is present.")
+                    if not amount_str:
+                        errors.append(f"Amount for Box 14 Item {i} (Desc: {desc}) is required if description is present.")
+                    else:
+                        try:
+                            float(amount_str) # Can be positive or negative
+                        except ValueError:
+                            errors.append(f"Amount for Box 14 Item {i} (Desc: {desc}) must be a valid number.")
+                    if desc and amount_str:
+                        validated_data['box14_items'].append({'description': desc, 'amount': amount_str})
 
-            # State Info (dictionaries)
+            # --- 7. State & Local Info ---
             for i in range(1, 3): # state1, state2
-                state_key_prefix = f'state{i}'
-                if form_data.get(f'{state_key_prefix}_employer_state'): # Check if primary field for state exists
-                    parsed_data[f'state_info_{i}'] = {
-                        'employer_state': form_data.get(f'{state_key_prefix}_employer_state', ''),
-                        'employer_state_id': form_data.get(f'{state_key_prefix}_employer_state_id', ''),
-                        'state_wages_tips': form_data.get(f'{state_key_prefix}_state_wages_tips', ''),
-                        'state_income_tax': form_data.get(f'{state_key_prefix}_state_income_tax', '')
+                state_prefix = f'state{i}'
+                state_code = form_data_for_repopulation.get(f'{state_prefix}_employer_state', '').strip()
+                state_id = form_data_for_repopulation.get(f'{state_prefix}_employer_state_id', '').strip()
+                state_wages_str = form_data_for_repopulation.get(f'{state_prefix}_state_wages_tips', '').strip()
+                state_tax_str = form_data_for_repopulation.get(f'{state_prefix}_state_income_tax', '').strip()
+
+                if state_code or state_id or state_wages_str or state_tax_str: # If any part of state info is present
+                    if not state_code: errors.append(f"State Code for State Info {i} is required if other state fields are filled.")
+                    elif not (len(state_code) == 2 and state_code.isalpha() and state_code.isupper()): errors.append(f"State Code for State Info {i} must be 2 uppercase letters.")
+                    if not state_id: errors.append(f"Employer's State ID for State Info {i} is required.")
+                    if not state_wages_str: errors.append(f"State Wages for State Info {i} are required.")
+                    else:
+                        try:
+                            if float(state_wages_str) < 0: errors.append(f"State Wages for State Info {i} must be zero or positive.")
+                        except ValueError: errors.append(f"State Wages for State Info {i} must be a valid number.")
+                    if not state_tax_str: errors.append(f"State Income Tax for State Info {i} is required.")
+                    else:
+                        try:
+                            if float(state_tax_str) < 0: errors.append(f"State Income Tax for State Info {i} must be zero or positive.")
+                        except ValueError: errors.append(f"State Income Tax for State Info {i} must be a valid number.")
+
+                    validated_data[f'state_info_{i}'] = {
+                        'employer_state': state_code, 'employer_state_id': state_id,
+                        'state_wages_tips': state_wages_str, 'state_income_tax': state_tax_str
                     }
-                else: # Ensure the key exists even if empty, as template might expect it
-                     parsed_data[f'state_info_{i}'] = {}
+                else: # Ensure key exists if template expects it, even if empty
+                    validated_data[f'state_info_{i}'] = {}
 
 
-            # Local Info (dictionaries)
             for i in range(1, 3): # local1, local2
-                local_key_prefix = f'local{i}'
-                if form_data.get(f'{local_key_prefix}_locality_name'): # Check if primary field for local exists
-                     parsed_data[f'local_info_{i}'] = {
-                        'local_wages_tips': form_data.get(f'{local_key_prefix}_local_wages_tips', ''),
-                        'local_income_tax': form_data.get(f'{local_key_prefix}_local_income_tax', ''),
-                        'locality_name': form_data.get(f'{local_key_prefix}_locality_name', '')
+                local_prefix = f'local{i}'
+                locality_name = form_data_for_repopulation.get(f'{local_prefix}_locality_name', '').strip()
+                local_wages_str = form_data_for_repopulation.get(f'{local_prefix}_local_wages_tips', '').strip()
+                local_tax_str = form_data_for_repopulation.get(f'{local_prefix}_local_income_tax', '').strip()
+
+                if locality_name or local_wages_str or local_tax_str:
+                    if not locality_name: errors.append(f"Locality Name for Local Info {i} is required.")
+                    if not local_wages_str: errors.append(f"Local Wages for Local Info {i} are required.")
+                    else:
+                        try:
+                            if float(local_wages_str) < 0: errors.append(f"Local Wages for Local Info {i} must be zero or positive.")
+                        except ValueError: errors.append(f"Local Wages for Local Info {i} must be a valid number.")
+                    if not local_tax_str: errors.append(f"Local Income Tax for Local Info {i} is required.")
+                    else:
+                        try:
+                            if float(local_tax_str) < 0: errors.append(f"Local Income Tax for Local Info {i} must be zero or positive.")
+                        except ValueError: errors.append(f"Local Income Tax for Local Info {i} must be a valid number.")
+
+                    validated_data[f'local_info_{i}'] = {
+                        'local_wages_tips': local_wages_str, 'local_income_tax': local_tax_str,
+                        'locality_name': locality_name
                     }
-                else: # Ensure the key exists even if empty
-                     parsed_data[f'local_info_{i}'] = {}
+                else: # Ensure key exists
+                    validated_data[f'local_info_{i}'] = {}
 
 
-            # Basic validation (can be more thorough)
-            if not parsed_data.get('employer_ein') or not parsed_data.get('employee_ssn'):
-                flash('Missing required W-2 fields (e.g., Employer EIN, Employee SSN).', 'error')
-                return redirect(url_for('generate_w2_route'))
+            if errors:
+                for error in errors:
+                    flash(error, 'error')
+                return render_template('generate_w2_form.html', title='Generate W-2 Form', form_data=form_data_for_repopulation)
 
-            pdf_bytes = generate_w2_form(parsed_data)
+            # If validation passes, proceed to generate PDF
+            pdf_bytes = generate_w2_form(validated_data)
+            # ... (rest of PDF serving logic from existing route) ...
+            # ... (ensure the success case and the "Failed to generate W-2 PDF" case still use form_data_for_repopulation for consistency if re-rendering)
+            # Corrected: use validated_data for PDF name, and form_data_for_repopulation for re-rendering on PDF gen failure
 
             if pdf_bytes:
                 return send_file(
                     io.BytesIO(pdf_bytes),
                     mimetype='application/pdf',
                     as_attachment=True,
-                    download_name=f"W2_form_{parsed_data.get('form_year', '')}_{parsed_data.get('employee_name_last', 'generated')}.pdf"
+                    download_name=f"W2_form_{validated_data.get('form_year', '')}_{validated_data.get('employee_name_last', 'generated')}.pdf"
                 )
             else:
                 flash('Failed to generate W-2 PDF. Rendering may have timed out or an error occurred. Check server logs.', 'error')
-                return redirect(url_for('generate_w2_route'))
+                return render_template('generate_w2_form.html', title='Generate W-2 Form', form_data=form_data_for_repopulation)
 
         except Exception as e:
             app.logger.error(f"Error generating W-2 form: {e}", exc_info=True)
