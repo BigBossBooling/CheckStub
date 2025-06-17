@@ -14,6 +14,63 @@ from .income_statement_generator import generate_income_statement
 from .earning_statement_generator import generate_earning_statement
 
 # It's good practice to make template and static folder paths relative to the app
+
+def parse_and_validate_dynamic_items(form_data, item_type_prefix, field_definitions):
+    """
+    Parses and validates dynamic list items from form data.
+    Example item_type_prefix: 'earning', 'deduction'
+    field_definitions: list of tuples like [('desc', 'Description', True), ('current', 'Current Amount', True, 'number_positive_or_zero'), ...]
+                       (field_suffix, display_name, is_required_if_desc_present, type_check [optional])
+    """
+    items = []
+    errors = []
+    idx = 1
+    while True:
+        # Check for a primary descriptor field to see if the row exists
+        primary_desc_field_key = f'{item_type_prefix}{idx}_desc' # Assuming '_desc' is always the primary identifier
+
+        if not form_data.get(primary_desc_field_key): # If no description for this index, assume no more items
+            break
+
+        item_data = {}
+        has_primary_desc = bool(form_data.get(primary_desc_field_key, '').strip())
+        # current_item_has_error = False # Not used in this version of logic
+
+        for field_suffix, display_name, is_required, *type_info in field_definitions:
+            field_key = f'{item_type_prefix}{idx}_{field_suffix}'
+            value_str = form_data.get(field_key, '').strip()
+            item_data[field_suffix] = value_str # Store original string value for repopulation or further use
+
+            if is_required and has_primary_desc and not value_str:
+                errors.append(f"{display_name} for {item_type_prefix.capitalize()} {idx} is required when description is present.")
+                # current_item_has_error = True
+
+            if value_str and type_info: # If value exists and type check is defined
+                type_check = type_info[0]
+                if type_check == 'number_positive_or_zero':
+                    try:
+                        val = float(value_str)
+                        if val < 0:
+                            errors.append(f"{display_name} for {item_type_prefix.capitalize()} {idx} must be zero or positive.")
+                            # current_item_has_error = True
+                    except ValueError:
+                        errors.append(f"{display_name} for {item_type_prefix.capitalize()} {idx} must be a valid number.")
+                        # current_item_has_error = True
+                elif type_check == 'number': # Any number
+                     try:
+                        float(value_str)
+                     except ValueError:
+                        errors.append(f"{display_name} for {item_type_prefix.capitalize()} {idx} must be a valid number.")
+                        # current_item_has_error = True
+
+        if has_primary_desc: # Only add item if primary description was present
+            items.append(item_data)
+
+        idx += 1
+        if idx > 50: # Safety break for runaway loops if form data is crafted maliciously
+            errors.append(f"Exceeded maximum number of {item_type_prefix} items.")
+            break
+    return items, errors
 # or use instance_path for more complex setups.
 # For now, let's assume templates are in a 'web_templates' subdir of the app.
 # And static files are in 'static' subdir of the app (which might conflict if not careful)
@@ -142,55 +199,72 @@ def generate_check_route():
 def generate_check_stub_route():
     if request.method == 'POST':
         try:
-            form_data = request.form.to_dict()
+            form_data_for_repopulation = request.form
+            form_data_dict = request.form.to_dict() # For passing to generator if valid
+            errors = []
+            parsed_data = form_data_dict.copy() # Start with all flat fields for the generator
 
-            # --- Data Transformation for Dynamic Earnings & Deductions ---
-            parsed_data = form_data.copy() # Start with all flat fields
+            # Define field structures for dynamic items
+            earning_field_defs = [
+                ('desc', 'Description', True),
+                ('hours', 'Hours', False, 'number_positive_or_zero'), # Optional, but numeric if present
+                ('rate', 'Rate', False, 'number_positive_or_zero'),   # Optional, but numeric if present
+                ('current', 'Current Amount', True, 'number_positive_or_zero'),
+                ('ytd', 'YTD Amount', False, 'number_positive_or_zero') # Optional, but numeric if present
+            ]
+            deduction_field_defs = [
+                ('desc', 'Description', True),
+                ('current', 'Current Amount', True, 'number_positive_or_zero'),
+                ('ytd', 'YTD Amount', False, 'number_positive_or_zero') # Optional, but numeric if present
+            ]
 
-            parsed_data['earnings'] = []
-            earning_idx = 1
-            while True:
-                desc_key = f'earning{earning_idx}_desc'
-                current_key = f'earning{earning_idx}_current'
-                if desc_key in form_data and form_data[desc_key]: # Check if description exists and is not empty
-                    parsed_data['earnings'].append({
-                        'description': form_data[desc_key],
-                        'hours': form_data.get(f'earning{earning_idx}_hours', ''),
-                        'rate': form_data.get(f'earning{earning_idx}_rate', ''),
-                        'current': form_data.get(current_key, ''), # Current amount should ideally exist if desc does
-                        'ytd': form_data.get(f'earning{earning_idx}_ytd', '')
-                    })
-                    earning_idx += 1
-                else:
-                    # If a description is missing, assume no more earnings rows for this index.
-                    # This handles cases where rows might be removed from the middle if JS doesn't re-index.
-                    # A more robust way would be to count max index from keys if sparse indices are a concern.
-                    # For now, sequential check is simpler if JS always adds sequentially.
-                    break
-                    # If we want to handle sparse indices (e.g. user removes row 1 but leaves row 2),
-                    # we'd need to find all keys matching 'earningX_desc' and extract X.
-                    # For now, this assumes JavaScript adds rows with contiguous indices starting from 1.
+            parsed_earnings, earning_errors = parse_and_validate_dynamic_items(form_data_for_repopulation, 'earning', earning_field_defs)
+            errors.extend(earning_errors)
+            parsed_data['earnings'] = parsed_earnings # This now contains dicts with string values
 
-            parsed_data['deductions'] = []
-            deduction_idx = 1
-            while True:
-                desc_key = f'deduction{deduction_idx}_desc'
-                current_key = f'deduction{deduction_idx}_current'
-                if desc_key in form_data and form_data[desc_key]:
-                    parsed_data['deductions'].append({
-                        'description': form_data[desc_key],
-                        'current': form_data.get(current_key, ''),
-                        'ytd': form_data.get(f'deduction{deduction_idx}_ytd', '')
-                    })
-                    deduction_idx += 1
-                else:
-                    break
-            # --- End Data Transformation ---
+            parsed_deductions, deduction_errors = parse_and_validate_dynamic_items(form_data_for_repopulation, 'deduction', deduction_field_defs)
+            errors.extend(deduction_errors)
+            parsed_data['deductions'] = parsed_deductions
 
-            # Basic validation (can be enhanced)
-            if not parsed_data.get('company_name') or not parsed_data.get('employee_name'):
-                flash('Missing required check stub fields.', 'error')
-                return redirect(url_for('generate_check_stub_route'))
+            # Static Required Fields
+            required_static_fields = {
+                'company_name': "Company Name", 'employee_name': "Employee Name",
+                'pay_period_start': "Pay Period Start", 'pay_period_end': "Pay Period End", 'pay_date': "Pay Date",
+                'total_earnings_current': "Total Current Earnings",
+                'total_deductions_current': "Total Current Deductions",
+                'net_pay_current': "Current Net Pay",
+                'total_earnings_ytd': "YTD Total Earnings", # Made these required for example
+                'total_deductions_ytd': "YTD Total Deductions",
+                'ytd_net_pay': "YTD Net Pay"
+            }
+            for field, display_name in required_static_fields.items():
+                if not form_data_for_repopulation.get(field):
+                    errors.append(f"{display_name} is required.")
+
+            # Numeric Checks for Totals (even if JS calculates, server should verify)
+            numeric_total_fields = [
+                'total_earnings_current', 'total_deductions_current', 'net_pay_current',
+                'total_earnings_ytd', 'total_deductions_ytd', 'ytd_net_pay'
+            ]
+            for field_key in numeric_total_fields:
+                value_str = form_data_for_repopulation.get(field_key, '').strip()
+                if value_str: # Only validate if present (required check handles absence)
+                    try:
+                        # Net pay can be negative, others typically positive or zero
+                        if field_key == 'net_pay_current' or field_key == 'ytd_net_pay':
+                             float(value_str)
+                        else:
+                            val = float(value_str)
+                            if val < 0:
+                                 errors.append(f"{required_static_fields.get(field_key, field_key)} must be zero or positive.")
+                    except ValueError:
+                        errors.append(f"{required_static_fields.get(field_key, field_key)} must be a valid number.")
+                # If field is required and empty, it's already caught by required_static_fields check
+
+            if errors:
+                for error in errors:
+                    flash(error, 'error')
+                return render_template('generate_check_stub_form.html', title='Generate Check Stub', form_data=form_data_for_repopulation)
 
             pdf_bytes = generate_check_stub(parsed_data)
 
@@ -202,8 +276,8 @@ def generate_check_stub_route():
                     download_name=f"check_stub_{parsed_data.get('check_number', 'generated')}.pdf"
                 )
             else:
-                flash('Failed to generate check stub PDF. Please check server logs.', 'error')
-                return redirect(url_for('generate_check_stub_route'))
+                flash('Failed to generate check stub PDF. An internal error occurred or task timed out. Please check server logs.', 'error')
+                return render_template('generate_check_stub_form.html', title='Generate Check Stub', form_data=form_data_for_repopulation)
 
         except Exception as e:
             app.logger.error(f"Error generating check stub: {e}", exc_info=True)
@@ -560,43 +634,67 @@ def convert_pdf_to_png_route():
 def generate_earning_statement_route():
     if request.method == 'POST':
         try:
-            form_data = request.form.to_dict()
-            # Data Transformation for Dynamic Earnings & Deductions (same as check_stub_route)
-            parsed_data = form_data.copy()
+            form_data_for_repopulation = request.form
+            form_data_dict = request.form.to_dict()
+            errors = []
+            parsed_data = form_data_dict.copy()
 
-            parsed_data['earnings'] = []
-            earning_idx = 1
-            while True:
-                desc_key = f'earning{earning_idx}_desc'
-                if desc_key in form_data and form_data[desc_key]:
-                    parsed_data['earnings'].append({
-                        'description': form_data[desc_key],
-                        'hours': form_data.get(f'earning{earning_idx}_hours', ''),
-                        'rate': form_data.get(f'earning{earning_idx}_rate', ''),
-                        'current': form_data.get(f'earning{earning_idx}_current', ''),
-                        'ytd': form_data.get(f'earning{earning_idx}_ytd', '')
-                    })
-                    earning_idx += 1
-                else:
-                    break
+            earning_field_defs = [
+                ('desc', 'Description', True),
+                ('hours', 'Hours', False, 'number_positive_or_zero'),
+                ('rate', 'Rate', False, 'number_positive_or_zero'),
+                ('current', 'Current Amount', True, 'number_positive_or_zero'),
+                ('ytd', 'YTD Amount', False, 'number_positive_or_zero')
+            ]
+            deduction_field_defs = [
+                ('desc', 'Description', True),
+                ('current', 'Current Amount', True, 'number_positive_or_zero'),
+                ('ytd', 'YTD Amount', False, 'number_positive_or_zero')
+            ]
 
-            parsed_data['deductions'] = []
-            deduction_idx = 1
-            while True:
-                desc_key = f'deduction{deduction_idx}_desc'
-                if desc_key in form_data and form_data[desc_key]:
-                    parsed_data['deductions'].append({
-                        'description': form_data[desc_key],
-                        'current': form_data.get(f'deduction{deduction_idx}_current', ''),
-                        'ytd': form_data.get(f'deduction{deduction_idx}_ytd', '')
-                    })
-                    deduction_idx += 1
-                else:
-                    break
+            parsed_earnings, earning_errors = parse_and_validate_dynamic_items(form_data_for_repopulation, 'earning', earning_field_defs)
+            errors.extend(earning_errors)
+            parsed_data['earnings'] = parsed_earnings
 
-            if not parsed_data.get('company_name') or not parsed_data.get('employee_name'):
-                flash('Missing required Earning Statement fields.', 'error')
-                return redirect(url_for('generate_earning_statement_route'))
+            parsed_deductions, deduction_errors = parse_and_validate_dynamic_items(form_data_for_repopulation, 'deduction', deduction_field_defs)
+            errors.extend(deduction_errors)
+            parsed_data['deductions'] = parsed_deductions
+
+            required_static_fields = {
+                'company_name': "Company Name", 'employee_name': "Employee Name",
+                'pay_period_start': "Pay Period Start", 'pay_period_end': "Pay Period End", 'pay_date': "Pay Date",
+                'total_earnings_current': "Total Current Earnings",
+                'total_deductions_current': "Total Current Deductions",
+                'net_pay_current': "Current Net Pay",
+                'total_earnings_ytd': "YTD Total Earnings",
+                'total_deductions_ytd': "YTD Total Deductions",
+                'ytd_net_pay': "YTD Net Pay"
+            }
+            for field, display_name in required_static_fields.items():
+                if not form_data_for_repopulation.get(field):
+                    errors.append(f"{display_name} is required.")
+
+            numeric_total_fields = [
+                'total_earnings_current', 'total_deductions_current', 'net_pay_current',
+                'total_earnings_ytd', 'total_deductions_ytd', 'ytd_net_pay'
+            ]
+            for field_key in numeric_total_fields:
+                value_str = form_data_for_repopulation.get(field_key, '').strip()
+                if value_str:
+                    try:
+                        if field_key == 'net_pay_current' or field_key == 'ytd_net_pay':
+                             float(value_str)
+                        else:
+                            val = float(value_str)
+                            if val < 0:
+                                 errors.append(f"{required_static_fields.get(field_key, field_key)} must be zero or positive.")
+                    except ValueError:
+                        errors.append(f"{required_static_fields.get(field_key, field_key)} must be a valid number.")
+
+            if errors:
+                for error in errors:
+                    flash(error, 'error')
+                return render_template('generate_earning_statement_form.html', title='Generate Earning Statement', form_data=form_data_for_repopulation)
 
             pdf_bytes = generate_earning_statement(parsed_data)
 
@@ -608,8 +706,8 @@ def generate_earning_statement_route():
                     download_name=f"Earning_Statement_{parsed_data.get('employee_id', 'generated')}.pdf"
                 )
             else:
-                flash('Failed to generate Earning Statement PDF. Check server logs.', 'error')
-                return redirect(url_for('generate_earning_statement_route'))
+                flash('Failed to generate Earning Statement PDF. An internal error occurred or task timed out. Please check server logs.', 'error')
+                return render_template('generate_earning_statement_form.html', title='Generate Earning Statement', form_data=form_data_for_repopulation)
 
         except Exception as e:
             app.logger.error(f"Error generating Earning Statement: {e}", exc_info=True)
