@@ -290,57 +290,118 @@ def generate_check_stub_route():
 def generate_bank_statement_route():
     if request.method == 'POST':
         try:
-            form_data = request.form.to_dict()
-            parsed_data = form_data.copy()
+            form_data_for_repopulation = request.form
+            form_data_dict = request.form.to_dict()
+            errors = []
+            parsed_data = form_data_dict.copy() # Start with all flat fields
 
-            # Parse Dynamic Transactions
-            parsed_data['transactions'] = []
+            # --- Custom Parsing for Transactions to match JS naming ---
+            raw_transactions = []
             trx_idx = 1
             while True:
-                # Use the new field name convention from the updated HTML/JS (e.g., trx_date_1, trx_desc_1)
-                date_key = f'trx_date_{trx_idx}'
                 desc_key = f'trx_desc_{trx_idx}'
+                date_key = f'trx_date_{trx_idx}'
 
-                trx_date = form_data.get(date_key)
-                trx_desc = form_data.get(desc_key)
+                if not form_data_for_repopulation.get(desc_key) and not form_data_for_repopulation.get(date_key):
+                    break # Stop if key fields for this index are missing
 
-                # A transaction is considered present if its date and description are provided
-                if trx_date and trx_desc:
-                    parsed_data['transactions'].append({
-                        'date': trx_date,
-                        'description': trx_desc,
-                        'withdrawal_amount': form_data.get(f'trx_withdrawal_{trx_idx}', ''),
-                        'deposit_amount': form_data.get(f'trx_deposit_{trx_idx}', ''),
-                        'running_balance': form_data.get(f'trx_balance_{trx_idx}', '')
-                    })
-                    trx_idx += 1
+                item_data = {
+                    'description': form_data_for_repopulation.get(desc_key, ''),
+                    'date': form_data_for_repopulation.get(date_key, ''),
+                    'withdrawal_amount': form_data_for_repopulation.get(f'trx_withdrawal_{trx_idx}', ''),
+                    'deposit_amount': form_data_for_repopulation.get(f'trx_deposit_{trx_idx}', ''),
+                    'running_balance': form_data_for_repopulation.get(f'trx_balance_{trx_idx}', '')
+                }
+
+                # Validation for this specific transaction item
+                if not item_data['description']:
+                    errors.append(f"Description for Transaction {trx_idx} is required.")
+                if not item_data['date']:
+                    errors.append(f"Date for Transaction {trx_idx} is required.")
+                if not item_data['running_balance']:
+                    errors.append(f"Running Balance for Transaction {trx_idx} is required.")
                 else:
-                    # Stop if a primary field (like date or description) for the current index is missing
-                    break
+                    try:
+                        float(item_data['running_balance'])
+                    except ValueError:
+                        errors.append(f"Running Balance for Transaction {trx_idx} must be a valid number.")
 
-            # Parse Summary Messages (from textarea, one per line)
-            summary_messages_str = form_data.get('summary_messages', '')
+                for amount_field_key, display_field_name in [
+                    ('withdrawal_amount', 'Withdrawal Amount'),
+                    ('deposit_amount', 'Deposit Amount')
+                ]:
+                    amount_val_str = item_data[amount_field_key]
+                    if amount_val_str: # If provided
+                        try:
+                            val = float(amount_val_str)
+                            if val < 0:
+                                errors.append(f"{display_field_name} for Transaction {trx_idx} must be zero or positive.")
+                        except ValueError:
+                             errors.append(f"{display_field_name} for Transaction {trx_idx} must be a valid number.")
+
+                raw_transactions.append(item_data)
+                trx_idx += 1
+                if trx_idx > 50: # Safety break
+                    errors.append("Exceeded maximum number of transaction items.")
+                    break
+            parsed_data['transactions'] = raw_transactions
+            # --- End Custom Transaction Parsing ---
+
+
+            # Static Required Fields & Numeric Checks
+            static_required_fields = {
+                'bank_name': "Bank Name", 'account_holder_name': "Account Holder Name",
+                'account_number': "Account Number", 'statement_date': "Statement Date",
+                'statement_period_start': "Period Start Date", 'statement_period_end': "Period End Date",
+                'opening_balance': "Opening Balance", 'closing_balance': "Closing Balance"
+            }
+            for field, display_name in static_required_fields.items():
+                if not form_data_for_repopulation.get(field):
+                    errors.append(f"{display_name} is required.")
+
+            numeric_static_fields = { # Display Name, can_be_negative
+                'opening_balance': ("Opening Balance", True), 'closing_balance': ("Closing Balance", True),
+                'total_deposits': ("Total Deposits (Summary)", False), # Optional, but numeric if present
+                'total_withdrawals': ("Total Withdrawals (Summary)", False) # Optional, but numeric if present
+            }
+            for field, (display_name, can_be_negative) in numeric_static_fields.items():
+                value_str = form_data_for_repopulation.get(field, '').strip()
+                if value_str: # If field is filled (optional fields might be blank)
+                    try:
+                        val = float(value_str)
+                        if not can_be_negative and val < 0:
+                            errors.append(f"{display_name} must be zero or positive.")
+                    except ValueError:
+                        errors.append(f"{display_name} must be a valid number.")
+                elif field in ['opening_balance', 'closing_balance']: # These are required AND numeric
+                     if not form_data_for_repopulation.get(field): # Already caught by static_required_fields if empty
+                        pass
+                     else: # Exists but couldn't be parsed by float() if it got here with error
+                        errors.append(f"{display_name} must be a valid number.")
+
+            # Parse Summary Messages (from textarea, one per line) - This was part of the old logic, ensure it's still here
+            summary_messages_str = form_data_for_repopulation.get('summary_messages', '') # Use form_data_for_repopulation
             parsed_data['summary_messages'] = [msg.strip() for msg in summary_messages_str.splitlines() if msg.strip()]
 
-            # Basic validation
-            if not parsed_data.get('account_holder_name') or not parsed_data.get('account_number'):
-                flash('Missing required bank statement fields (e.g., Account Holder, Account Number).', 'error')
-                return redirect(url_for('generate_bank_statement_route'))
 
-            # Call the generator
-            # This might be slow due to WeasyPrint rendering complex tables
-            pdf_bytes = generate_bank_statement(parsed_data)
+            if errors:
+                for error in errors:
+                    flash(error, 'error')
+                return render_template('generate_bank_statement_form.html', title='Generate Bank Statement', form_data=form_data_for_repopulation)
+
+            # Proceed with PDF generation
+            pdf_bytes = generate_bank_statement(parsed_data) # parsed_data contains original strings for amounts
 
             if pdf_bytes:
                 return send_file(
                     io.BytesIO(pdf_bytes),
                     mimetype='application/pdf',
                     as_attachment=True,
-                    download_name=f"bank_statement_{parsed_data.get('account_number', 'generated')}.pdf"
+                    download_name=f"bank_statement_{parsed_data.get('account_number', 'generated').replace(' ', '_')}.pdf"
                 )
             else:
                 flash('Failed to generate bank statement PDF. Rendering may have timed out or an error occurred. Check server logs.', 'error')
-                return redirect(url_for('generate_bank_statement_route'))
+                return render_template('generate_bank_statement_form.html', title='Generate Bank Statement', form_data=form_data_for_repopulation)
 
         except Exception as e:
             app.logger.error(f"Error generating bank statement: {e}", exc_info=True)
